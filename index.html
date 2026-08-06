@@ -18,211 +18,350 @@
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap');
     * { box-sizing: border-box; margin: 0; }
-    body { background: #0A0C0F; color: #F2F4F7; font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
-    .app { min-height: 100vh; background: #0A0C0F; color: #F2F4F7; }
+    body { background: #0A0C0F; color: #F2F4F7; font-family: Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    .app { min-height: 100vh; background: #0A0C0F; }
     .shell { max-width: 1200px; margin: 0 auto; padding: 28px 20px 56px; }
     @media (min-width: 769px) { .shell { padding: 48px 40px 80px; } }
-    @media (max-width: 480px) { .shell { padding: 20px 16px 40px; } }
-    .wordmark { font-family: 'Archivo', sans-serif; font-weight: 600; font-size: 14px; letter-spacing: 0.34em; margin-bottom: 30px; }
+    .wordmark { font-family: Archivo, sans-serif; font-weight: 600; font-size: 14px; letter-spacing: 0.34em; margin-bottom: 30px; }
     .center-col { display: flex; flex-direction: column; align-items: center; text-align: center; }
-    .hero-h { font-family: 'Archivo', sans-serif; font-weight: 700; font-size: 32px; line-height: 1.16; letter-spacing: -0.02em; margin: 28px 0 14px; text-wrap: balance; max-width: 600px; }
+    .hero-h { font-family: Archivo, sans-serif; font-weight: 700; font-size: 32px; line-height: 1.16; letter-spacing: -0.02em; margin: 28px 0 14px; max-width: 600px; }
     @media (min-width: 700px) { .hero-h { font-size: 34px; } }
     .hero-p { color: #B0B9C6; font-size: 16px; line-height: 1.6; max-width: 600px; margin-bottom: 30px; }
     .fine { color: #A0A9B8; font-size: 12px; margin-top: 16px; line-height: 1.5; }
-    .fine.center { text-align: center; margin-top: 30px; }
-    .eyebrow { font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 10.5px; letter-spacing: 0.22em; text-transform: uppercase; color: #8B93A1; margin-bottom: 12px; }
-    .btn-primary { font-family: 'Archivo', sans-serif; font-weight: 700; font-size: 15px; background: #F2F4F7; color: #0A0C0F; border: none; border-radius: 100px; padding: 16px 30px; cursor: pointer; letter-spacing: 0.01em; transition: transform .15s ease; }
+    .eyebrow { font-family: JetBrains Mono, monospace; font-weight: 600; font-size: 10.5px; letter-spacing: 0.22em; text-transform: uppercase; color: #8B93A1; margin-bottom: 12px; }
+    .btn-primary { font-family: Archivo, sans-serif; font-weight: 700; font-size: 15px; background: #F2F4F7; color: #0A0C0F; border: none; border-radius: 100px; padding: 16px 30px; cursor: pointer; transition: transform 0.15s ease; }
     .btn-primary:hover { transform: translateY(-1px); }
     .btn-primary.wide { width: 100%; margin-top: 34px; }
-    .btn-secondary { font-family: 'Archivo', sans-serif; font-weight: 600; font-size: 13.5px; background: transparent; color: #F2F4F7; border: 1.5px solid rgba(255,255,255,0.08); border-radius: 100px; padding: 12px 22px; cursor: pointer; }
-    .btn-ghost { background: none; border: none; color: #8B93A1; font-size: 14.5px; font-family: inherit; cursor: pointer; padding: 6px 8px 6px 0; }
+    .btn-secondary { font-family: Archivo, sans-serif; font-weight: 600; font-size: 13.5px; background: transparent; color: #F2F4F7; border: 1.5px solid rgba(255,255,255,0.08); border-radius: 100px; padding: 12px 22px; cursor: pointer; }
+    .btn-ghost { background: none; border: none; color: #8B93A1; font-size: 14.5px; cursor: pointer; padding: 6px 8px 6px 0; }
     .cell-wrap { position: relative; display: grid; place-items: center; }
-    .cell-halo { position: absolute; inset: -16%; border-radius: 50%; pointer-events: none; }
-    .cell-svg { position: relative; }
+    .cell-halo { position: absolute; inset: -16%; border-radius: 50%; }
     .cell-center { position: absolute; display: flex; flex-direction: column; align-items: center; }
-    .cell-eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 8px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: #8B93A1; margin-bottom: 4px; }
-    .cell-num { font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 62px; letter-spacing: -0.035em; line-height: 1; display: flex; align-items: center; justify-content: center; }
+    .cell-num { font-family: Archivo, sans-serif; font-weight: 800; font-size: 62px; letter-spacing: -0.035em; line-height: 1; display: flex; align-items: center; }
     .cell-pct { font-size: 26px; font-weight: 700; opacity: 0.7; margin-left: 2px; }
-    .cell-state { font-family: 'Archivo', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: #F2F4F7; margin-top: 8px; }
+    .cell-state { font-family: Archivo, sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; margin-top: 8px; }
     .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 32px; }
-    @media (max-width: 768px) { .feature-grid { grid-template-columns: 1fr !important; } }
+    @media (max-width: 768px) { .feature-grid { grid-template-columns: 1fr; } }
     .card { background: #121519; border-radius: 20px; padding: 20px; margin-bottom: 14px; border: 1px solid rgba(255,255,255,0.08); }
     .card-p { color: #8B93A1; font-size: 14px; line-height: 1.6; }
-    .center-text { text-align: center; }
-    .share-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
-    .q-title { font-family: 'Archivo', sans-serif; font-weight: 700; font-size: 23px; line-height: 1.24; margin-bottom: 6px; }
-    .q-sub { color: #8B93A1; font-size: 14px; margin-bottom: 4px; }
-    .slider-block { margin-top: 34px; }
-    .slider-val { font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 54px; letter-spacing: -0.03em; text-align: center; margin-bottom: 24px; }
-    .slider-unit { font-size: 19px; font-weight: 600; color: #8B93A1; }
-    .slider { -webkit-appearance: none; width: 100%; height: 5px; border-radius: 6px; background: rgba(255,255,255,0.08); }
-    .slider::-webkit-slider-thumb { -webkit-appearance: none; width: 30px; height: 30px; border-radius: 50%; background: #F2F4F7; cursor: pointer; box-shadow: 0 3px 14px rgba(0,0,0,0.5); }
+    .q-title { font-family: Archivo, sans-serif; font-weight: 700; font-size: 23px; line-height: 1.24; margin-bottom: 6px; }
+    .slider-val { font-family: Archivo, sans-serif; font-weight: 800; font-size: 54px; text-align: center; margin-bottom: 24px; }
+    .slider { width: 100%; height: 5px; border-radius: 6px; background: rgba(255,255,255,0.08); }
+    .slider::-webkit-slider-thumb { width: 30px; height: 30px; border-radius: 50%; background: #F2F4F7; cursor: pointer; box-shadow: 0 3px 14px rgba(0,0,0,0.5); }
     .chip-col { display: flex; flex-direction: column; gap: 10px; margin-top: 26px; }
-    .chip { background: #121519; border: 1.5px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 16px 18px; font-size: 15px; font-family: inherit; color: #F2F4F7; text-align: left; cursor: pointer; width: 100%; }
+    .chip { background: #121519; border: 1.5px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 16px 18px; font-size: 15px; color: #F2F4F7; text-align: left; cursor: pointer; width: 100%; }
     .chip.on { border-color: #F2F4F7; background: #F2F4F7; color: #0A0C0F; }
     .state-desc { color: #8B93A1; font-size: 15px; margin: 20px 0 8px; }
-    .delta { font-family: 'Archivo', sans-serif; font-weight: 700; font-size: 14px; margin-bottom: 26px; }
-    .pb-badge { font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 11px; color: hsl(172, 80%, 60%); background: hsla(172, 80%, 55%, 0.1); border: 1px solid hsla(172, 80%, 55%, 0.3); border-radius: 100px; padding: 6px 14px; margin-bottom: 12px; }
-    .checkin-top { display: flex; align-items: center; gap: 14px; margin-bottom: 34px; }
-    .progress { flex: 1; height: 3px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; }
-    .progress-fill { height: 100%; background: #F2F4F7; transition: width .35s cubic-bezier(.4,0,.2,1); }
-    .fade-in { animation: fade .45s ease both; }
-    .slide-l { animation: slideL .3s cubic-bezier(.4,0,.2,1) both; }
+    .delta { font-family: Archivo, sans-serif; font-weight: 700; font-size: 14px; margin-bottom: 26px; }
+    .pb-badge { font-family: JetBrains Mono, monospace; font-weight: 600; font-size: 11px; color: hsl(172, 80%, 60%); background: hsla(172, 80%, 55%, 0.1); border: 1px solid hsla(172, 80%, 55%, 0.3); border-radius: 100px; padding: 6px 14px; margin-bottom: 12px; }
+    .progress { height: 3px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #F2F4F7; }
+    .fade-in { animation: fade 0.45s ease both; }
     @keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; } }
-    @keyframes slideL { from { opacity: 0; transform: translateX(26px); } to { opacity: 1; } }
     .loading-dot { width: 10px; height: 10px; border-radius: 50%; background: #8B93A1; margin: 40vh auto 0; animation: pulse 1s ease infinite alternate; }
     @keyframes pulse { from { opacity: 0.3; } to { opacity: 1; } }
-    .cell-wrap.pulsing .cell-halo { animation: haloPulse 2.6s ease-in-out infinite; }
-    @keyframes haloPulse { 0%, 100% { opacity: 0.55; transform: scale(0.96); } 50% { opacity: 1; transform: scale(1.06); } }
   </style>
 </head>
 <body>
   <div id="root"></div>
   <script type="text/babel">
-const { useState, useEffect, useRef, useMemo } = React;
+const { useState, useEffect, useRef } = React;
+
 const STORAGE_KEY = "charge:v1";
-const AGE_BRACKETS = [{ id: "18-24", label: "18–24", avg: 54 }, { id: "25-34", label: "25–34", avg: 49 }, { id: "35-44", label: "35–44", avg: 47 }, { id: "45-54", label: "45–54", avg: 50 }, { id: "55+", label: "55+", avg: 56 }];
-const STATES = [{ name: "Peak", min: 81, max: 100, desc: "Full capacity. Systems primed — deploy it on what matters most." }, { name: "Strong", min: 66, max: 80, desc: "High capacity with headroom. Protect recovery to reach Peak." }, { name: "Recovering", min: 46, max: 65, desc: "Capacity is rebuilding. Managing load strategically pays off this week." }, { name: "Rebuild", min: 0, max: 45, desc: "Reserves are low. Recovery is your highest-leverage performance move." }];
+const STATES = [
+  { name: "Peak", min: 81, max: 100, desc: "Full capacity. Systems primed." },
+  { name: "Strong", min: 66, max: 80, desc: "High capacity. Protect recovery." },
+  { name: "Recovering", min: 46, max: 65, desc: "Capacity rebuilding. Manage load." },
+  { name: "Rebuild", min: 0, max: 45, desc: "Reserves low. Recovery first." }
+];
+
 const stateOf = (c) => STATES.find((s) => c >= s.min) || STATES[STATES.length - 1];
-const AVG_CHARGE = 52;
-const bracketOf = (id) => AGE_BRACKETS.find((b) => b.id === id) || null;
-const avgFor = (ageBracket) => bracketOf(ageBracket)?.avg ?? AVG_CHARGE;
-const chargeHue = (c) => c <= 50 ? 8 + (c / 50) * 32 : 40 + ((c - 50) / 50) * 132;
-const chargeColor = (c, s = 85, l = 58) => `hsl(${chargeHue(c)}, ${s}%, ${l}%)`;
-const percentile = (c, avg = AVG_CHARGE) => { const z = (c - avg) / 15; const t = 1 / (1 + 0.3275911 * Math.abs(z)); const erf = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-z * z); const p = 0.5 * (1 + Math.sign(z) * erf); return Math.round(Math.min(Math.max(p * 100, 1), 99)); };
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
-const fmtDate = (iso) => new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+const chargeHue = (c) => c <= 50 ? 8 + (c / 50) * 32 : 40 + ((c - 50) / 50) * 132;
+const chargeColor = (c) => `hsl(${chargeHue(c)}, 85%, 58%)`;
 
-function computeSubscores(a) {
-  const sleepScore = Math.max(0, 100 - Math.min(Math.abs(a.sleepHours - 7.5) * 15, 50) - (5 - a.sleepQuality) * 20);
-  const workloadScore = Math.max(0, 100 - (Math.min(Math.abs(a.totalWorkHours - 45) / 35 * 60, 60) + (a.highDemandDaysCount / 7) * 40 + 30));
-  const movementScore = (Math.min(a.exerciseDays, 5) / 5) * 70 + (a.recovery.length / 3) * 30;
-  const emotionalScore = Math.max(0, 100 - ((a.stressLevel * 10 + (a.symptoms.length / 5) * 100 + 30) / 3));
-  const screenPenalty = Math.min((a.screenHours - 4) / 8 * 60, 60);
-  const focusScore = Math.max(0, 100 - (screenPenalty + 50 / 2 + 20 / 2));
-  const nutritionScore = Math.round(clamp(100 - 60 / 2 - (a.nutritionHighProcessedDays / 7) * 40 + (a.nutritionBalancedMealsDays / 7) * 60, 0, 100));
-  return { Recharge: Math.round(sleepScore), Load: Math.round(workloadScore), Restoration: Math.round(movementScore), "Stress Load": Math.round(emotionalScore), Attention: Math.round(focusScore), Fuel: Math.round(nutritionScore) };
+function computeCharge(a) {
+  const sleepScore = Math.max(0, 100 - Math.abs(a.sleepHours - 7.5) * 8 - (5 - a.sleepQuality) * 10);
+  const workScore = Math.max(0, 100 - Math.abs(a.workHours - 45) / 30 * 40);
+  const recoveryScore = (a.exerciseDays / 7) * 100;
+  const stressScore = Math.max(0, 100 - a.stressLevel * 8);
+  const focusScore = Math.max(0, 100 - Math.abs(a.screenHours - 4) / 8 * 40);
+  const charge = sleepScore * 0.3 + workScore * 0.25 + recoveryScore * 0.2 + stressScore * 0.15 + focusScore * 0.1;
+  return Math.round(clamp(charge, 0, 100));
 }
 
-function computeCharge(subscores, prevCharge) {
-  const charge = 0.30 * subscores.Recharge + 0.25 * subscores.Load + 0.20 * subscores.Restoration + 0.15 * subscores["Stress Load"] + 0.10 * subscores.Attention + 0.05 * subscores.Fuel;
-  let final = Math.round(charge);
-  if (prevCharge != null) final += (final - prevCharge) * 0.15;
-  return Math.round(clamp(final, 0, 100));
+async function loadState() {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    const s = stored ? JSON.parse(stored) : {};
+    return { history: s.history || [], profile: s.profile || {} };
+  } catch {
+    return { history: [], profile: {} };
+  }
 }
 
-async function loadState() { try { const stored = localStorage.getItem(STORAGE_KEY); const s = stored ? JSON.parse(stored) : {}; return { history: s.history || [], user: s.user || null, profile: s.profile || {}, activeCommitment: s.activeCommitment || null }; } catch { return { history: [], user: null, profile: {}, activeCommitment: null }; } }
-async function saveState(state) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { console.error("save failed", e); } }
+async function saveState(state) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {
+    console.error("save failed", e);
+  }
+}
 
 function ChargeCell({ charge, size = 260, animate = true, pulse = false }) {
   const [shown, setShown] = useState(animate ? 0 : charge);
-  useEffect(() => { if (!animate) { setShown(charge); return; } let raf, start; const dur = 1500; const tick = (t) => { if (!start) start = t; const p = Math.min((t - start) / dur, 1); setShown(Math.round((1 - Math.pow(1 - p, 3)) * charge)); if (p < 1) raf = requestAnimationFrame(tick); }; raf = requestAnimationFrame(tick); return () => cancelAnimationFrame(raf); }, [charge, animate]);
-  const cx = size / 2, cy = size / 2, R1 = size / 2 - 8, R2 = size / 2 - 26, N = 48, filled = Math.round((shown / 100) * N), hue = chargeHue(shown), col = `hsl(${hue}, 85%, 58%)`, st = stateOf(shown);
-  const ticks = []; for (let i = 0; i < N; i++) { const ang = ((135 + (270 * i) / (N - 1)) * Math.PI) / 180; const x1 = cx + R2 * Math.cos(ang), y1 = cy + R2 * Math.sin(ang), x2 = cx + R1 * Math.cos(ang), y2 = cy + R1 * Math.sin(ang); const on = i < filled; ticks.push(React.createElement("line", { key: i, x1, y1, x2, y2, stroke: on ? col : "rgba(255,255,255,0.09)", strokeWidth: 3.2, strokeLinecap: "round", style: on ? { filter: `drop-shadow(0 0 5px hsla(${hue},90%,60%,0.7))` } : undefined })); }
-  return React.createElement("div", { className: `cell-wrap ${pulse ? "pulsing" : ""}`, style: { width: size, height: size } }, React.createElement("div", { className: "cell-halo", style: { background: `radial-gradient(circle, hsla(${hue},90%,55%,0.14) 0%, transparent 65%)` } }), React.createElement("svg", { width: size, height: size, viewBox: `0 0 ${size} ${size}`, className: "cell-svg" }, ticks), React.createElement("div", { className: "cell-center" }, React.createElement("div", { className: "cell-eyebrow" }, "Your NEURL Score"), React.createElement("div", { className: "cell-num", style: { color: col } }, shown, React.createElement("span", { className: "cell-pct" }, "%")), React.createElement("div", { className: "cell-state" }, st.name)));
-}
+  useEffect(() => {
+    if (!animate) { setShown(charge); return; }
+    let raf, start;
+    const dur = 1500;
+    const tick = (t) => {
+      if (!start) start = t;
+      const p = Math.min((t - start) / dur, 1);
+      setShown(Math.round((1 - Math.pow(1 - p, 3)) * charge));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [charge, animate]);
 
-function ShareCard({ charge, best }) {
-  const [copied, setCopied] = useState(false);
-  const copyInvite = async () => { try { await navigator.clipboard.writeText(`My NEURL Score this week: ${charge}% ⚡\nJoin NEURL OS: https://neurl-os.com`); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch { } };
-  return React.createElement("div", { className: "card center-text" }, React.createElement("div", { className: "eyebrow" }, "Share Your Score"), React.createElement("p", { className: "card-p" }, "Share your NEURL Score with peers."), React.createElement("button", { className: "btn-secondary", onClick: copyInvite }, copied ? "Copied ✓" : "Copy Link"));
+  const cx = size / 2, cy = size / 2, R1 = size / 2 - 8, R2 = size / 2 - 26, N = 48;
+  const filled = Math.round((shown / 100) * N);
+  const hue = chargeHue(shown);
+  const col = `hsl(${hue}, 85%, 58%)`;
+  const st = stateOf(shown);
+
+  const ticks = [];
+  for (let i = 0; i < N; i++) {
+    const ang = ((135 + (270 * i) / (N - 1)) * Math.PI) / 180;
+    const x1 = cx + R2 * Math.cos(ang), y1 = cy + R2 * Math.sin(ang);
+    const x2 = cx + R1 * Math.cos(ang), y2 = cy + R1 * Math.sin(ang);
+    const on = i < filled;
+    ticks.push(
+      <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={on ? col : "rgba(255,255,255,0.09)"} strokeWidth="3.2" strokeLinecap="round" style={on ? { filter: `drop-shadow(0 0 5px hsla(${hue},90%,60%,0.7))` } : undefined} />
+    );
+  }
+
+  return (
+    <div style={{ width: size, height: size }} className="cell-wrap">
+      <div className="cell-halo" style={{ background: `radial-gradient(circle, hsla(${hue},90%,55%,0.14) 0%, transparent 65%)` }} />
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>{ticks}</svg>
+      <div className="cell-center">
+        <div className="eyebrow">Your NEURL Score</div>
+        <div className="cell-num" style={{ color: col }}>{shown}<span className="cell-pct">%</span></div>
+        <div className="cell-state">{st.name}</div>
+      </div>
+    </div>
+  );
 }
 
 function App() {
-  const [view, setView] = useState("loading"), [state, setState] = useState({ history: [], user: null, profile: {}, activeCommitment: null }), [step, setStep] = useState(0), [answers, setAnswers] = useState({ ageBracket: null, sleepHours: 7, sleepQuality: 3, totalWorkHours: 45, highDemandDaysCount: 2, timePressure: null, scheduleControl: null, workLifeConflict: null, stressLevel: 5, symptoms: [], workFeel: null, exerciseDays: 3, recovery: [], screenHours: 6, preBed: null, nutritionBalancedMealsDays: 4, nutritionHighProcessedDays: 1, hydrationQuality: null, caffeinePattern: null, tasksCompleted: 5, outputQuality: null, openDecisions: 8, contextSwitches: 10, deepWorkBlocks: 3 }), [dir, setDir] = useState(1), topRef = useRef(null);
-  
-  useEffect(() => { loadState().then((s) => { setState(s); setView(s.history.length ? "today" : "welcome"); }); }, []);
-  
-  const latest = state.history[state.history.length - 1] || null, prev = state.history[state.history.length - 2] || null, best = state.history.length ? Math.max(...state.history.map((e) => e.charge)) : null, bracket = state.profile?.ageBracket || null, avg = avgFor(bracket);
-  
-  const QUESTIONS = [{ key: "sleepHours", domain: "Sleep", title: "Hours of sleep on a typical night this week?", type: "slider", min: 3, max: 10, step: 0.5, unit: "hrs" }, { key: "sleepQuality", domain: "Sleep", title: "How recharged did you wake up?", type: "scale", labels: ["Empty", "Low", "Okay", "Good", "Full"] }, { key: "totalWorkHours", domain: "Workload", title: "Total hours worked this week?", type: "slider", min: 20, max: 80, step: 1, unit: "hrs" }, { key: "highDemandDaysCount", domain: "Workload", title: "Days felt back-to-back or intense?", type: "slider", min: 0, max: 7, step: 1, unit: "days" }, { key: "timePressure", domain: "Workload", title: "How much time pressure did you feel?", type: "chips", options: [{ id: "low", label: "Low" }, { id: "medium", label: "Medium" }, { id: "high", label: "High" }, { id: "extreme", label: "Extreme" }] }, { key: "scheduleControl", domain: "Workload", title: "How much control over your schedule?", type: "chips", options: [{ id: "high", label: "High (I control my time)" }, { id: "medium", label: "Medium" }, { id: "low", label: "Low" }, { id: "none", label: "None" }] }, { key: "workLifeConflict", domain: "Workload", title: "Work conflict with personal time?", type: "chips", options: [{ id: "low", label: "Low" }, { id: "medium", label: "Medium" }, { id: "high", label: "High" }, { id: "extreme", label: "Extreme" }] }, { key: "stressLevel", domain: "Emotional", title: "How stressed did you feel? (1-10)", type: "slider", min: 1, max: 10, step: 1, unit: "/ 10" }, { key: "symptoms", domain: "Emotional", title: "Physical stress signals this week?", type: "multi", options: ["Headaches", "Muscle tension", "Poor appetite", "Racing thoughts", "Trouble focusing"], none: "None" }, { key: "workFeel", domain: "Emotional", title: "Starting work, you felt…", type: "chips", options: [{ id: "energized", label: "Energized" }, { id: "neutral", label: "Neutral" }, { id: "drained", label: "Drained" }, { id: "dreading", label: "Dreading it" }] }, { key: "exerciseDays", domain: "Recovery", title: "Days you moved intentionally?", type: "slider", min: 0, max: 7, step: 1, unit: "days" }, { key: "recovery", domain: "Recovery", title: "Recovery activities this week?", type: "multi", options: ["Time with people", "Real breaks", "Fully offline time"], none: "None" }, { key: "screenHours", domain: "Focus", title: "Average daily screen time?", type: "slider", min: 2, max: 14, step: 0.5, unit: "hrs" }, { key: "preBed", domain: "Focus", title: "Screens 30 min before sleep?", type: "chips", options: [{ id: "rarely", label: "Rarely" }, { id: "sometimes", label: "Some nights" }, { id: "always", label: "Every night" }] }, { key: "nutritionBalancedMealsDays", domain: "Nutrition", title: "Days with regular balanced meals?", type: "slider", min: 0, max: 7, step: 1, unit: "days" }, { key: "nutritionHighProcessedDays", domain: "Nutrition", title: "Days mostly fast food?", type: "slider", min: 0, max: 7, step: 1, unit: "days" }, { key: "hydrationQuality", domain: "Nutrition", title: "How was your hydration?", type: "chips", options: [{ id: "poor", label: "Poor" }, { id: "ok", label: "Okay" }, { id: "good", label: "Good" }] }, { key: "caffeinePattern", domain: "Nutrition", title: "Your caffeine use was…", type: "chips", options: [{ id: "low", label: "Low" }, { id: "moderate", label: "Moderate" }, { id: "high_crash", label: "High with crashes" }] }, { key: "tasksCompleted", domain: "Performance", title: "High-leverage tasks completed?", type: "slider", min: 0, max: 20, step: 1, unit: "tasks" }, { key: "outputQuality", domain: "Performance", title: "Quality of work this week?", type: "chips", options: [{ id: "excellent", label: "Excellent" }, { id: "good", label: "Good" }, { id: "okay", label: "Okay" }, { id: "slipping", label: "Slipping" }, { id: "compromised", label: "Compromised" }] }, { key: "openDecisions", domain: "Cognitive", title: "Open decisions/projects?", type: "slider", min: 0, max: 50, step: 1, unit: "decisions" }, { key: "contextSwitches", domain: "Cognitive", title: "Context switches per day?", type: "slider", min: 2, max: 20, step: 1, unit: "switches" }, { key: "deepWorkBlocks", domain: "Cognitive", title: "Deep work blocks (90+ min)?", type: "slider", min: 0, max: 15, step: 1, unit: "blocks" }];
-  
-  const questions = useMemo(() => { const ageQ = { key: "ageBracket", domain: "Profile", title: "What's your age range?", type: "chips", options: AGE_BRACKETS }; return bracket ? QUESTIONS : [ageQ, ...QUESTIONS]; }, [bracket]);
-  
-  const q = questions[step], answered = (qq) => (qq.type === "chips" ? answers[qq.key] != null : true);
-  const next = () => { setDir(1); if (step < questions.length - 1) setStep(step + 1); else finish(); topRef.current?.scrollIntoView({ behavior: "smooth" }); };
-  const back = () => { setDir(-1); setStep(Math.max(0, step - 1)); };
-  const finish = async () => { const subscores = computeSubscores(answers); const charge = computeCharge(subscores, latest?.charge ?? null); const entry = { date: new Date().toISOString(), charge, subscores }; const profile = answers.ageBracket ? { ...state.profile, ageBracket: answers.ageBracket } : state.profile; const nextState = { ...state, profile, history: [...state.history, entry] }; setState(nextState); setView("reveal"); await saveState(nextState); };
-  const set = (key, val) => setAnswers((a) => ({ ...a, [key]: val }));
-  const toggle = (key, item) => setAnswers((a) => ({ ...a, [key]: a[key].includes(item) ? a[key].filter((x) => x !== item) : [...a[key], item] }));
-  const start = () => { setAnswers({ ...answers, ageBracket: bracket || null }); setStep(0); setDir(1); setView("checkin"); };
+  const [view, setView] = useState("loading");
+  const [state, setState] = useState({ history: [], profile: {} });
+  const [step, setStep] = useState(0);
+  const [answers, setAnswers] = useState({ sleepHours: 7, sleepQuality: 3, workHours: 45, exerciseDays: 3, stressLevel: 5, screenHours: 6 });
+  const topRef = useRef(null);
 
-  return React.createElement("div", { className: "app" }, React.createElement("div", { ref: topRef }), React.createElement("div", { className: "shell" },
-    view === "loading" && React.createElement("div", { className: "loading-dot" }),
-    view === "welcome" && React.createElement("div", { className: "fade-in center-col" }, 
-      React.createElement("div", { className: "wordmark" }, "NEURL OS"), 
-      React.createElement(ChargeCell, { charge: 86, animate: false, size: 220, pulse: true }), 
-      React.createElement("h1", { className: "hero-h" }, "The Operating System for Peak Performance"), 
-      React.createElement("p", { className: "hero-p" }, "NEURL OS transforms your weekly habits into a predictive performance model. Get your NEURL Score, forecast next week's capacity, and stay at your best before burnout begins. Designed for ambitious professionals who measure everything—except themselves."), 
-      React.createElement("button", { className: "btn-primary", onClick: start }, "Get Your NEURL Score"), 
-      React.createElement("div", { className: "fine" }, "2-minute weekly calibration · Your data, private · Login optional"),
-      React.createElement("div", { style: { marginTop: 48, paddingTop: 32, borderTop: "1px solid rgba(255,255,255,0.08)" } },
-        React.createElement("div", { style: { textAlign: "center", marginBottom: 32 } },
-          React.createElement("h2", { className: "hero-h", style: { fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em", marginBottom: 10, lineHeight: 1.3 } }, "Why High Performers Need NEURL OS"),
-          React.createElement("p", { className: "hero-p", style: { fontSize: 14, lineHeight: 1.6 } }, "Founders measure revenue. Athletes measure splits. Investors measure returns. But most high-performers never measure the one thing that determines everything: their own operating capacity.")
-        ),
-        React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 32 }, className: "feature-grid" },
-          React.createElement("div", { className: "card", style: { borderLeft: `3px solid ${chargeColor(85)}`, paddingLeft: "12px" } },
-            React.createElement("div", { className: "eyebrow" }, "Weekly NEURL Score"),
-            React.createElement("p", { className: "card-p", style: { fontSize: 14 } }, "Your operating system receives a single, predictive performance metric every week. Not vague. Not aspirational. Measurable.")
-          ),
-          React.createElement("div", { className: "card", style: { borderLeft: `3px solid ${chargeColor(85)}`, paddingLeft: "12px" } },
-            React.createElement("div", { className: "eyebrow" }, "AI-Powered Forecast"),
-            React.createElement("p", { className: "card-p", style: { fontSize: 14 } }, "Our system analyzes your habits and predicts next week's capacity before it happens.")
-          ),
-          React.createElement("div", { className: "card", style: { borderLeft: `3px solid ${chargeColor(85)}`, paddingLeft: "12px" } },
-            React.createElement("div", { className: "eyebrow" }, "Personal Performance Algorithm"),
-            React.createElement("p", { className: "card-p", style: { fontSize: 14 } }, "After 4 weeks of calibrations, NEURL OS reveals YOUR formula: which habits move your score most, when you peak, what kills your capacity.")
-          ),
-          React.createElement("div", { className: "card", style: { borderLeft: `3px solid ${chargeColor(85)}`, paddingLeft: "12px" } },
-            React.createElement("div", { className: "eyebrow" }, "Performance Leaderboard"),
-            React.createElement("p", { className: "card-p", style: { fontSize: 14 } }, "Share your NEURL Score with peers, teams, founders. See weekly rankings. Track monthly improvement streaks. Accountability drives consistency.")
-          )
-        ),
-        React.createElement("div", { style: { marginBottom: 32 } },
-          React.createElement("h3", { style: { fontSize: 15, fontWeight: 600, letterSpacing: "0.08em", marginBottom: 24, textAlign: "center", color: "#B0B9C6" } }, "HOW IT WORKS"),
-          React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr", gap: 20 } },
-            React.createElement("div", { style: { display: "flex", gap: 16, alignItems: "flex-start" } },
-              React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", width: 40, height: 40, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.3)", flexShrink: 0, fontFamily: "'Archivo', sans-serif", fontSize: 16, fontWeight: 600, color: "#F2F4F7" } }, "1"),
-              React.createElement("div", null,
-                React.createElement("p", { className: "card-p", style: { fontSize: 14, marginTop: 0 } }, "Complete a 2-minute weekly calibration. Answer 25 questions about your week: sleep, focus, decisions, output, stress, recovery.")
-              )
-            ),
-            React.createElement("div", { style: { display: "flex", gap: 16, alignItems: "flex-start" } },
-              React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", width: 40, height: 40, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.3)", flexShrink: 0, fontFamily: "'Archivo', sans-serif", fontSize: 16, fontWeight: 600, color: "#F2F4F7" } }, "2"),
-              React.createElement("div", null,
-                React.createElement("p", { className: "card-p", style: { fontSize: 14, marginTop: 0 } }, "AI analyzes your behavioral patterns. Our system maps six performance dimensions and weights them by your personal formula.")
-              )
-            ),
-            React.createElement("div", { style: { display: "flex", gap: 16, alignItems: "flex-start" } },
-              React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", width: 40, height: 40, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.3)", flexShrink: 0, fontFamily: "'Archivo', sans-serif", fontSize: 16, fontWeight: 600, color: "#F2F4F7" } }, "3"),
-              React.createElement("div", null,
-                React.createElement("p", { className: "card-p", style: { fontSize: 14, marginTop: 0 } }, "Get your NEURL Score (0–100), this week's forecast, and one high-leverage adjustment. Share your score. Track your trend.")
-              )
-            )
-          )
-        ),
-        React.createElement("div", { className: "card", style: { marginBottom: 32 } },
-          React.createElement("div", { className: "eyebrow" }, "The NEURL Score"),
-          React.createElement("p", { className: "card-p", style: { fontSize: 14, marginBottom: 20, lineHeight: 1.6 } }, "0–100. Higher is better. It measures your operating capacity right now."),
-          React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 } },
-            React.createElement("div", { style: { padding: 12, background: "rgba(76, 224, 167, 0.05)", borderRadius: 8, border: "1px solid rgba(76, 224, 167, 0.1)", borderTop: `2px solid ${chargeColor(85)}` } },
-              React.createElement("div", { style: { fontSize: 18, fontWeight: 700, color: chargeColor(85), marginBottom: 6, fontFamily: "'Archivo', sans-serif" } }, "81–100"),
-              React.createElement("p", { className: "fine", style: { fontSize: 11, lineHeight: 1.5, marginTop: 0 } }, "Peak. Full capacity. Deploy on your most important work.")
-            ),
-            React.createElement("div", { style: { padding: 12, background: "rgba(255, 184, 77, 0.05)", borderRadius: 8, border: "1px solid rgba(255, 184, 77, 0.1)", borderTop: `2px solid ${chargeColor(70)}` } },
-              React.createElement("div", { style: { fontSize: 18, fontWeight: 700, color: chargeColor(70), marginBottom: 6, fontFamily: "'Archivo', sans-serif" } }, "66–80"),
-              React.createElement("p", { className: "fine", style: { fontSize: 11, lineHeight: 1.5, marginTop: 0 } }, "Strong. High capacity. Protect recovery to reach peak.")
-            ),
-            React.createElement("div", { style: { padding: 12, background: "rgba(255, 193, 7, 0.05)", borderRadius: 8, border: "1px solid rgba(255, 193, 7, 0.1)", borderTop: `2px solid ${chargeColor(50)}` } },
-              React.createElement("div", { style: { fontSize: 18, fontWeight: 700, color: chargeColor(50), marginBottom: 6, fontFamily: "'Archivo', sans-serif" } }, "46–65"),
-              React.createElement("p", { className: "fine", style: { fontSize: 11, lineHeight: 1.5, marginTop: 0 } }, "Recovering. Manage load strategically this week.")
-            ),
-            React.createElement("div", { style: { padding: 12, background: "rgba(239, 83, 80, 0.05)", borderRadius: 8, border: "1px solid rgba(239, 83, 80, 0.1)", borderTop: `2px solid ${chargeColor(20)}` } },
-              React.createElement("div", { style: { fontSize: 18, fontWeight: 700, color: chargeColor(20), marginBottom: 6, fontFamily: "'Archivo', sans-serif" } }, "0–45"),
-              React.createElement("p", { className: "fine", style: { fontSize: 11, lineHeight: 1.5, marginTop: 0 } }, "Reserves low. Recovery is your highest-leverage move.")
-            )
-          )
-        ),
-        React.createElement("div", { style: { textAlign: "center", paddingTop: 32, borderTop: "1px solid rgba(255,255,255,0.08)" } },
-          React.createElement("h2", { className: "hero-h", style: { fontSize: 20,
+  useEffect(() => {
+    loadState().then((s) => {
+      setState(s);
+      setView(s.history.length ? "today" : "welcome");
+    });
+  }, []);
+
+  const latest = state.history[state.history.length - 1] || null;
+  const prev = state.history[state.history.length - 2] || null;
+
+  const QUESTIONS = [
+    { key: "sleepHours", title: "Hours of sleep on a typical night?", type: "slider", min: 3, max: 10, step: 0.5, unit: "hrs" },
+    { key: "sleepQuality", title: "How recharged did you wake up?", type: "scale", labels: ["Poor", "Fair", "Good", "Great", "Excellent"] },
+    { key: "workHours", title: "Total hours worked this week?", type: "slider", min: 20, max: 80, step: 1, unit: "hrs" },
+    { key: "exerciseDays", title: "Days you moved intentionally?", type: "slider", min: 0, max: 7, step: 1, unit: "days" },
+    { key: "stressLevel", title: "How stressed did you feel? (1-10)", type: "slider", min: 1, max: 10, step: 1, unit: "" },
+    { key: "screenHours", title: "Average daily screen time?", type: "slider", min: 2, max: 14, step: 0.5, unit: "hrs" }
+  ];
+
+  const q = QUESTIONS[step];
+  const next = () => {
+    if (step < QUESTIONS.length - 1) {
+      setStep(step + 1);
+    } else {
+      const charge = computeCharge(answers);
+      const entry = { date: new Date().toISOString(), charge };
+      const nextState = { ...state, history: [...state.history, entry] };
+      setState(nextState);
+      setView("reveal");
+      saveState(nextState);
+    }
+    topRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const back = () => setStep(Math.max(0, step - 1));
+  const set = (key, val) => setAnswers((a) => ({ ...a, [key]: val }));
+  const start = () => { setStep(0); setView("checkin"); };
+
+  return (
+    <div className="app">
+      <div ref={topRef} />
+      <div className="shell">
+        {view === "loading" && <div className="loading-dot" />}
+
+        {view === "welcome" && (
+          <div className="fade-in center-col">
+            <div className="wordmark">NEURL OS</div>
+            <ChargeCell charge={86} animate={false} size={220} pulse={true} />
+            <h1 className="hero-h">The Operating System for Peak Performance</h1>
+            <p className="hero-p">Get your weekly NEURL Score. Track your operating capacity. Stay at your best before burnout begins.</p>
+            <button className="btn-primary" onClick={start}>Get Your NEURL Score</button>
+            <div className="fine">2-minute weekly check-in · Private · No login required</div>
+
+            <div style={{ marginTop: 48, paddingTop: 32, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+              <h2 className="hero-h" style={{ fontSize: 20, marginBottom: 10 }}>Why High Performers Need NEURL OS</h2>
+              <div className="feature-grid">
+                <div className="card" style={{ borderLeft: `3px solid ${chargeColor(85)}`, paddingLeft: "12px" }}>
+                  <div className="eyebrow">Weekly NEURL Score</div>
+                  <p className="card-p">Your operating capacity in a single, measurable metric every week.</p>
+                </div>
+                <div className="card" style={{ borderLeft: `3px solid ${chargeColor(85)}`, paddingLeft: "12px" }}>
+                  <div className="eyebrow">AI-Powered Forecast</div>
+                  <p className="card-p">Predict next week's capacity before it happens.</p>
+                </div>
+                <div className="card" style={{ borderLeft: `3px solid ${chargeColor(85)}`, paddingLeft: "12px" }}>
+                  <div className="eyebrow">Personal Algorithm</div>
+                  <p className="card-p">Discover which habits move your score most.</p>
+                </div>
+                <div className="card" style={{ borderLeft: `3px solid ${chargeColor(85)}`, paddingLeft: "12px" }}>
+                  <div className="eyebrow">Performance Leaderboard</div>
+                  <p className="card-p">Share your score. See rankings. Track improvement.</p>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 32 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 600, letterSpacing: "0.08em", marginBottom: 24, textAlign: "center", color: "#B0B9C6" }}>HOW IT WORKS</h3>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 20 }}>
+                  <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 40, height: 40, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.3)", flexShrink: 0, fontFamily: "Archivo, sans-serif", fontSize: 16, fontWeight: 600, color: "#F2F4F7" }}>1</div>
+                    <p className="card-p" style={{ fontSize: 14, marginTop: 0 }}>Complete a 2-minute weekly calibration. Answer 6 simple questions.</p>
+                  </div>
+                  <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 40, height: 40, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.3)", flexShrink: 0, fontFamily: "Archivo, sans-serif", fontSize: 16, fontWeight: 600, color: "#F2F4F7" }}>2</div>
+                    <p className="card-p" style={{ fontSize: 14, marginTop: 0 }}>AI analyzes your patterns. Our system maps six performance dimensions.</p>
+                  </div>
+                  <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 40, height: 40, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.3)", flexShrink: 0, fontFamily: "Archivo, sans-serif", fontSize: 16, fontWeight: 600, color: "#F2F4F7" }}>3</div>
+                    <p className="card-p" style={{ fontSize: 14, marginTop: 0 }}>Get your NEURL Score (0-100), forecast, and one high-leverage adjustment.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="card" style={{ marginBottom: 32 }}>
+                <div className="eyebrow">The NEURL Score</div>
+                <p className="card-p">0–100. Higher is better. It measures your operating capacity right now.</p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+                  <div style={{ padding: 12, background: "rgba(76, 224, 167, 0.05)", borderRadius: 8, borderTop: `2px solid ${chargeColor(85)}` }}>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: chargeColor(85), marginBottom: 6 }}>81–100</div>
+                    <p className="fine" style={{ fontSize: 11, marginTop: 0 }}>Peak. Full capacity.</p>
+                  </div>
+                  <div style={{ padding: 12, background: "rgba(255, 184, 77, 0.05)", borderRadius: 8, borderTop: `2px solid ${chargeColor(70)}` }}>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: chargeColor(70), marginBottom: 6 }}>66–80</div>
+                    <p className="fine" style={{ fontSize: 11, marginTop: 0 }}>Strong. Protect recovery.</p>
+                  </div>
+                  <div style={{ padding: 12, background: "rgba(255, 193, 7, 0.05)", borderRadius: 8, borderTop: `2px solid ${chargeColor(50)}` }}>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: chargeColor(50), marginBottom: 6 }}>46–65</div>
+                    <p className="fine" style={{ fontSize: 11, marginTop: 0 }}>Recovering. Manage load.</p>
+                  </div>
+                  <div style={{ padding: 12, background: "rgba(239, 83, 80, 0.05)", borderRadius: 8, borderTop: `2px solid ${chargeColor(20)}` }}>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: chargeColor(20), marginBottom: 6 }}>0–45</div>
+                    <p className="fine" style={{ fontSize: 11, marginTop: 0 }}>Rebuild. Recovery first.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ textAlign: "center", paddingTop: 32, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+                <button className="btn-primary" onClick={start} style={{ marginTop: 20 }}>Get Your NEURL Score</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {view === "checkin" && q && (
+          <div className="fade-in">
+            <button className="btn-ghost" onClick={() => (step === 0 ? setView("welcome") : back())}>
+              {step === 0 ? "‹ Close" : "‹ Back"}
+            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 34 }}>
+              <div className="progress" style={{ flex: 1 }}>
+                <div className="progress-fill" style={{ width: `${((step + 1) / QUESTIONS.length) * 100}%` }} />
+              </div>
+              <span style={{ fontSize: 11, color: "#8B93A1" }}>{step + 1}/{QUESTIONS.length}</span>
+            </div>
+
+            <h2 className="q-title">{q.title}</h2>
+
+            {q.type === "slider" && (
+              <div style={{ marginTop: 34 }}>
+                <div className="slider-val">{answers[q.key]}<span style={{ fontSize: 19, fontWeight: 600, color: "#8B93A1", marginLeft: 8 }}>{q.unit}</span></div>
+                <input type="range" min={q.min} max={q.max} step={q.step} value={answers[q.key]} onChange={(e) => set(q.key, parseFloat(e.target.value))} className="slider" style={{ width: "100%" }} />
+              </div>
+            )}
+
+            {q.type === "scale" && (
+              <div style={{ display: "flex", gap: 7, marginTop: 28 }}>
+                {q.labels.map((lab, i) => (
+                  <button
+                    key={i}
+                    style={{
+                      flex: 1,
+                      background: answers[q.key] === i + 1 ? "#F2F4F7" : "#121519",
+                      color: answers[q.key] === i + 1 ? "#0A0C0F" : "#F2F4F7",
+                      border: `1.5px solid ${answers[q.key] === i + 1 ? "#F2F4F7" : "rgba(255,255,255,0.08)"}`,
+                      borderRadius: 14,
+                      padding: 14,
+                      cursor: "pointer"
+                    }}
+                    onClick={() => set(q.key, i + 1)}
+                  >
+                    <div style={{ fontWeight: 700 }}>{i + 1}</div>
+                    <div style={{ fontSize: 9.5, marginTop: 6 }}>{lab}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <button className="btn-primary wide" onClick={next}>
+              {step === QUESTIONS.length - 1 ? "Get my NEURL Score" : "Continue"}
+            </button>
+          </div>
+        )}
+
+        {view === "reveal" && latest && (
+          <div className="fade-in center-col">
+            <div className="eyebrow" style={{ marginBottom: 10 }}>This week's reading</div>
+            <ChargeCell charge={latest.charge} />
+            <p className="state-desc">{stateOf(latest.charge).desc}</p>
+            {prev && (
+              <div className="delta" style={{ color: latest.charge >= prev.charge ? chargeColor(85) : chargeColor(20) }}>
+                {latest.charge >= prev.charge ? "▲" : "▼"} {Math.abs(latest.charge - prev.charge)} vs last week
+              </div>
+            )}
+            <button className="btn-primary wide" onClick={() => setView("today")}>View Your Dashboard</button>
+          </div>
+        )}
+
+        {view === "today" && latest && (
+          <div className="fade-in center-col">
+            <div className="wordmark">CHARGE</div>
+            <ChargeCell charge={latest.charge} animate={false} size={230} />
+            <p className="fine" style={{ marginTop: 14 }}>Last read: {new Date(latest.date).toLocaleDateString()}</p>
+            <button className="btn-primary wide" onClick={start}>Take this week's reading</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+  </script>
+</body>
+</html>
