@@ -4,6 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NEURL OS — The Operating System for Peak Performance</title>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-JCWHCCMJHQ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-JCWHCCMJHQ');
+  </script>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -141,15 +149,80 @@ function App() {
 
   return React.createElement("div", { className: "app" }, React.createElement("div", { ref: topRef }), React.createElement("div", { className: "shell" },
     view === "loading" && React.createElement("div", { className: "loading-dot" }),
-    view === "welcome" && React.createElement("div", { className: "fade-in center-col" }, React.createElement("div", { className: "wordmark" }, "NEURL OS"), React.createElement(ChargeCell, { charge: 86, animate: false, size: 220, pulse: true }), React.createElement("h1", { className: "hero-h" }, "The Operating System for Peak Performance"), React.createElement("p", { className: "hero-p" }, "NEURL OS transforms your weekly habits into a predictive performance model. Get your NEURL Score and stay at your best before burnout begins."), React.createElement("button", { className: "btn-primary", onClick: start }, "Get Your NEURL Score"), React.createElement("div", { className: "fine" }, "2-minute weekly calibration · Your data stays private"), React.createElement("div", { style: { marginTop: 48, paddingTop: 32, borderTop: "1px solid rgba(255,255,255,0.08)" } }, React.createElement("h2", { className: "hero-h", style: { fontSize: 20, marginBottom: 10 } }, "Why High Performers Need NEURL OS"), React.createElement("div", { className: "feature-grid" }, React.createElement("div", { className: "card", style: { borderLeft: `3px solid ${chargeColor(85)}` } }, React.createElement("div", { className: "eyebrow" }, "Weekly NEURL Score"), React.createElement("p", { className: "card-p" }, "Your operating system receives a single, predictive performance metric every week.")), React.createElement("div", { className: "card", style: { borderLeft: `3px solid ${chargeColor(85)}` } }, React.createElement("div", { className: "eyebrow" }, "AI-Powered Forecast"), React.createElement("p", { className: "card-p" }, "Our system analyzes your habits and predicts next week's capacity before it happens.")), React.createElement("div", { className: "card", style: { borderLeft: `3px solid ${chargeColor(85)}` } }, React.createElement("div", { className: "eyebrow" }, "Personal Algorithm"), React.createElement("p", { className: "card-p" }, "After 4 weeks, NEURL OS reveals YOUR formula: which habits move your score most.")), React.createElement("div", { className: "card", style: { borderLeft: `3px solid ${chargeColor(85)}` } }, React.createElement("div", { className: "eyebrow" }, "Performance Leaderboard"), React.createElement("p", { className: "card-p" }, "Share your NEURL Score with peers. See weekly rankings. Track improvement streaks."))), React.createElement("div", { style: { textAlign: "center", paddingTop: 32, borderTop: "1px solid rgba(255,255,255,0.08)" } }, React.createElement("h2", { className: "hero-h", style: { fontSize: 20 } }, "Your Best Week Starts With Understanding Yourself"), React.createElement("button", { className: "btn-primary", onClick: start, style: { marginTop: 20 } }, "Get Your NEURL Score")))),
-    view === "checkin" && q && React.createElement("div", { className: "fade-in" }, React.createElement("button", { className: "btn-ghost", onClick: () => (step === 0 ? setView("welcome") : back()) }, step === 0 ? "‹ Close" : "‹ Back"), React.createElement("div", { className: "checkin-top" }, React.createElement("div", { className: "progress" }, React.createElement("div", { className: "progress-fill", style: { width: `${((step + 1) / questions.length) * 100}%` } })), React.createElement("span", { style: { fontSize: 11, color: "#8B93A1" } }, `${step + 1}/${questions.length}`)), React.createElement("div", { key: step }, React.createElement("div", { className: "eyebrow" }, q.domain), React.createElement("h2", { className: "q-title" }, q.title), q.subtitle && React.createElement("p", { className: "q-sub" }, q.subtitle), q.type === "slider" && React.createElement("div", { className: "slider-block" }, React.createElement("div", { className: "slider-val" }, answers[q.key], React.createElement("span", { className: "slider-unit" }, ` ${q.unit}`)), React.createElement("input", { type: "range", min: q.min, max: q.max, step: q.step, value: answers[q.key], onChange: (e) => set(q.key, parseFloat(e.target.value)), className: "slider" })), q.type === "scale" && React.createElement("div", { style: { display: "flex", gap: 7, marginTop: 28 } }, q.labels.map((lab, i) => React.createElement("button", { key: i, style: { flex: 1, background: answers[q.key] === i + 1 ? "#F2F4F7" : "#121519", color: answers[q.key] === i + 1 ? "#0A0C0F" : "#F2F4F7", border: "1.5px solid " + (answers[q.key] === i + 1 ? "#F2F4F7" : "rgba(255,255,255,0.08)"), borderRadius: 14, padding: 14, cursor: "pointer" }, onClick: () => set(q.key, i + 1) }, React.createElement("div", { style: { fontWeight: 700 } }, i + 1), React.createElement("div", { style: { fontSize: 9.5, marginTop: 6 } }, lab)))), q.type === "chips" && React.createElement("div", { className: "chip-col" }, q.options.map((o) => React.createElement("button", { key: o.id, className: "chip" + (answers[q.key] === o.id ? " on" : ""), onClick: () => set(q.key, o.id) }, o.label))), q.type === "multi" && React.createElement("div", { className: "chip-col" }, q.options.map((o) => React.createElement("button", { key: o, className: "chip" + (answers[q.key].includes(o) ? " on" : ""), onClick: () => toggle(q.key, o) }, o)), React.createElement("button", { className: "chip" + (answers[q.key].length === 0 ? " on" : ""), onClick: () => set(q.key, []) }, q.none))), React.createElement("button", { className: "btn-primary wide", disabled: !answered(q), onClick: next }, step === questions.length - 1 ? "Get my NEURL Score" : "Continue")),
-    view === "reveal" && latest && React.createElement("div", { className: "fade-in center-col" }, React.createElement("div", { className: "eyebrow", style: { marginBottom: 10 } }, "This week's reading"), React.createElement(ChargeCell, { charge: latest.charge }), React.createElement("p", { className: "state-desc" }, stateOf(latest.charge).desc), React.createElement("div", { className: "card", style: { marginTop: 16 } }, React.createElement("div", { className: "eyebrow" }, "Your performance ranking"), React.createElement("p", { className: "card-p", style: { fontSize: 18, marginBottom: 8 } }, `${percentile(latest.charge, avg)}th percentile`), React.createElement("p", { className: "fine" }, `Higher than ${percentile(latest.charge, avg)}% of peers your age.`)), best === latest.charge && state.history.length > 1 && React.createElement("div", { className: "pb-badge" }, "▲ New personal best"), prev && React.createElement("div", { className: "delta", style: { color: latest.charge >= prev.charge ? chargeColor(85) : chargeColor(20) } }, `${latest.charge >= prev.charge ? "▲" : "▼"} ${Math.abs(latest.charge - prev.charge)} vs last week`), React.createElement(ShareCard, { charge: latest.charge, best: best }), React.createElement("button", { className: "btn-primary wide", onClick: () => setView("today") }, "View Your Dashboard")),
-    view === "today" && latest && React.createElement("div", { className: "fade-in center-col" }, React.createElement("div", { className: "wordmark" }, "CHARGE"), React.createElement(ChargeCell, { charge: latest.charge, animate: false, size: 230 }), React.createElement("p", { className: "fine", style: { marginTop: 14 } }, `Read ${fmtDate(latest.date)}`), React.createElement("div", { className: "card", style: { marginTop: 16 } }, React.createElement("div", { className: "eyebrow" }, "Summary"), React.createElement("p", { className: "card-p" }, `You're in ${stateOf(latest.charge).name.toLowerCase()} mode. Keep calibrating weekly.`)), React.createElement(ShareCard, { charge: latest.charge, best: best }), React.createElement("button", { className: "btn-primary wide", onClick: start }, "Take this week's reading"))
-  ));
-}
-
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(React.createElement(App));
-  </script>
-</body>
-</html>
+    view === "welcome" && React.createElement("div", { className: "fade-in center-col" }, 
+      React.createElement("div", { className: "wordmark" }, "NEURL OS"), 
+      React.createElement(ChargeCell, { charge: 86, animate: false, size: 220, pulse: true }), 
+      React.createElement("h1", { className: "hero-h" }, "The Operating System for Peak Performance"), 
+      React.createElement("p", { className: "hero-p" }, "NEURL OS transforms your weekly habits into a predictive performance model. Get your NEURL Score, forecast next week's capacity, and stay at your best before burnout begins. Designed for ambitious professionals who measure everything—except themselves."), 
+      React.createElement("button", { className: "btn-primary", onClick: start }, "Get Your NEURL Score"), 
+      React.createElement("div", { className: "fine" }, "2-minute weekly calibration · Your data, private · Login optional"),
+      React.createElement("div", { style: { marginTop: 48, paddingTop: 32, borderTop: "1px solid rgba(255,255,255,0.08)" } },
+        React.createElement("div", { style: { textAlign: "center", marginBottom: 32 } },
+          React.createElement("h2", { className: "hero-h", style: { fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em", marginBottom: 10, lineHeight: 1.3 } }, "Why High Performers Need NEURL OS"),
+          React.createElement("p", { className: "hero-p", style: { fontSize: 14, lineHeight: 1.6 } }, "Founders measure revenue. Athletes measure splits. Investors measure returns. But most high-performers never measure the one thing that determines everything: their own operating capacity.")
+        ),
+        React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 32 }, className: "feature-grid" },
+          React.createElement("div", { className: "card", style: { borderLeft: `3px solid ${chargeColor(85)}`, paddingLeft: "12px" } },
+            React.createElement("div", { className: "eyebrow" }, "Weekly NEURL Score"),
+            React.createElement("p", { className: "card-p", style: { fontSize: 14 } }, "Your operating system receives a single, predictive performance metric every week. Not vague. Not aspirational. Measurable.")
+          ),
+          React.createElement("div", { className: "card", style: { borderLeft: `3px solid ${chargeColor(85)}`, paddingLeft: "12px" } },
+            React.createElement("div", { className: "eyebrow" }, "AI-Powered Forecast"),
+            React.createElement("p", { className: "card-p", style: { fontSize: 14 } }, "Our system analyzes your habits and predicts next week's capacity before it happens.")
+          ),
+          React.createElement("div", { className: "card", style: { borderLeft: `3px solid ${chargeColor(85)}`, paddingLeft: "12px" } },
+            React.createElement("div", { className: "eyebrow" }, "Personal Performance Algorithm"),
+            React.createElement("p", { className: "card-p", style: { fontSize: 14 } }, "After 4 weeks of calibrations, NEURL OS reveals YOUR formula: which habits move your score most, when you peak, what kills your capacity.")
+          ),
+          React.createElement("div", { className: "card", style: { borderLeft: `3px solid ${chargeColor(85)}`, paddingLeft: "12px" } },
+            React.createElement("div", { className: "eyebrow" }, "Performance Leaderboard"),
+            React.createElement("p", { className: "card-p", style: { fontSize: 14 } }, "Share your NEURL Score with peers, teams, founders. See weekly rankings. Track monthly improvement streaks. Accountability drives consistency.")
+          )
+        ),
+        React.createElement("div", { style: { marginBottom: 32 } },
+          React.createElement("h3", { style: { fontSize: 15, fontWeight: 600, letterSpacing: "0.08em", marginBottom: 24, textAlign: "center", color: "#B0B9C6" } }, "HOW IT WORKS"),
+          React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr", gap: 20 } },
+            React.createElement("div", { style: { display: "flex", gap: 16, alignItems: "flex-start" } },
+              React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", width: 40, height: 40, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.3)", flexShrink: 0, fontFamily: "'Archivo', sans-serif", fontSize: 16, fontWeight: 600, color: "#F2F4F7" } }, "1"),
+              React.createElement("div", null,
+                React.createElement("p", { className: "card-p", style: { fontSize: 14, marginTop: 0 } }, "Complete a 2-minute weekly calibration. Answer 25 questions about your week: sleep, focus, decisions, output, stress, recovery.")
+              )
+            ),
+            React.createElement("div", { style: { display: "flex", gap: 16, alignItems: "flex-start" } },
+              React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", width: 40, height: 40, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.3)", flexShrink: 0, fontFamily: "'Archivo', sans-serif", fontSize: 16, fontWeight: 600, color: "#F2F4F7" } }, "2"),
+              React.createElement("div", null,
+                React.createElement("p", { className: "card-p", style: { fontSize: 14, marginTop: 0 } }, "AI analyzes your behavioral patterns. Our system maps six performance dimensions and weights them by your personal formula.")
+              )
+            ),
+            React.createElement("div", { style: { display: "flex", gap: 16, alignItems: "flex-start" } },
+              React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", width: 40, height: 40, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.3)", flexShrink: 0, fontFamily: "'Archivo', sans-serif", fontSize: 16, fontWeight: 600, color: "#F2F4F7" } }, "3"),
+              React.createElement("div", null,
+                React.createElement("p", { className: "card-p", style: { fontSize: 14, marginTop: 0 } }, "Get your NEURL Score (0–100), this week's forecast, and one high-leverage adjustment. Share your score. Track your trend.")
+              )
+            )
+          )
+        ),
+        React.createElement("div", { className: "card", style: { marginBottom: 32 } },
+          React.createElement("div", { className: "eyebrow" }, "The NEURL Score"),
+          React.createElement("p", { className: "card-p", style: { fontSize: 14, marginBottom: 20, lineHeight: 1.6 } }, "0–100. Higher is better. It measures your operating capacity right now."),
+          React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 } },
+            React.createElement("div", { style: { padding: 12, background: "rgba(76, 224, 167, 0.05)", borderRadius: 8, border: "1px solid rgba(76, 224, 167, 0.1)", borderTop: `2px solid ${chargeColor(85)}` } },
+              React.createElement("div", { style: { fontSize: 18, fontWeight: 700, color: chargeColor(85), marginBottom: 6, fontFamily: "'Archivo', sans-serif" } }, "81–100"),
+              React.createElement("p", { className: "fine", style: { fontSize: 11, lineHeight: 1.5, marginTop: 0 } }, "Peak. Full capacity. Deploy on your most important work.")
+            ),
+            React.createElement("div", { style: { padding: 12, background: "rgba(255, 184, 77, 0.05)", borderRadius: 8, border: "1px solid rgba(255, 184, 77, 0.1)", borderTop: `2px solid ${chargeColor(70)}` } },
+              React.createElement("div", { style: { fontSize: 18, fontWeight: 700, color: chargeColor(70), marginBottom: 6, fontFamily: "'Archivo', sans-serif" } }, "66–80"),
+              React.createElement("p", { className: "fine", style: { fontSize: 11, lineHeight: 1.5, marginTop: 0 } }, "Strong. High capacity. Protect recovery to reach peak.")
+            ),
+            React.createElement("div", { style: { padding: 12, background: "rgba(255, 193, 7, 0.05)", borderRadius: 8, border: "1px solid rgba(255, 193, 7, 0.1)", borderTop: `2px solid ${chargeColor(50)}` } },
+              React.createElement("div", { style: { fontSize: 18, fontWeight: 700, color: chargeColor(50), marginBottom: 6, fontFamily: "'Archivo', sans-serif" } }, "46–65"),
+              React.createElement("p", { className: "fine", style: { fontSize: 11, lineHeight: 1.5, marginTop: 0 } }, "Recovering. Manage load strategically this week.")
+            ),
+            React.createElement("div", { style: { padding: 12, background: "rgba(239, 83, 80, 0.05)", borderRadius: 8, border: "1px solid rgba(239, 83, 80, 0.1)", borderTop: `2px solid ${chargeColor(20)}` } },
+              React.createElement("div", { style: { fontSize: 18, fontWeight: 700, color: chargeColor(20), marginBottom: 6, fontFamily: "'Archivo', sans-serif" } }, "0–45"),
+              React.createElement("p", { className: "fine", style: { fontSize: 11, lineHeight: 1.5, marginTop: 0 } }, "Reserves low. Recovery is your highest-leverage move.")
+            )
+          )
+        ),
+        React.createElement("div", { style: { textAlign: "center", paddingTop: 32, borderTop: "1px solid rgba(255,255,255,0.08)" } },
+          React.createElement("h2", { className: "hero-h", style: { fontSize: 20,
