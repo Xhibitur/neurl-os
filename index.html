@@ -1,10 +1,563 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>NEURL OS</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NEURL OS — The Operating System for Peak Performance</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
-<body style="background: #0A0C0F; color: #F2F4F7; font-family: Arial; text-align: center; padding: 50px;">
-  <h1>NEURL OS Loading...</h1>
-  <p>If you see this, the HTML is working!</p>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+const { useState, useEffect, useRef, useMemo } = React;
+
+const STORAGE_KEY = "charge:v1";
+
+const AFTER_HOURS = [
+  { id: "never", label: "Never", risk: 0 },
+  { id: "sometimes", label: "1–2 nights", risk: 33 },
+  { id: "often", label: "3–4 nights", risk: 66 },
+  { id: "daily", label: "Most nights", risk: 100 },
+];
+
+const WORK_FEEL = [
+  { id: "engaged", label: "Energized", risk: 0 },
+  { id: "neutral", label: "Neutral", risk: 30 },
+  { id: "drained", label: "Drained", risk: 70 },
+  { id: "dreading", label: "Dreading it", risk: 100 },
+];
+
+const PRE_BED = [
+  { id: "no", label: "Rarely", risk: 0 },
+  { id: "sometimes", label: "Some nights", risk: 50 },
+  { id: "yes", label: "Every night", risk: 100 },
+];
+
+const SYMPTOMS = ["Headaches", "Muscle tension", "Poor appetite", "Racing thoughts", "Trouble focusing"];
+const RECOVERY = ["Time with people", "Real breaks", "Fully offline time"];
+
+const TIME_PRESSURE = [
+  { id: "low", label: "Low", risk: 0 },
+  { id: "medium", label: "Medium", risk: 25 },
+  { id: "high", label: "High", risk: 60 },
+  { id: "extreme", label: "Extreme", risk: 100 },
+];
+
+const SCHEDULE_CONTROL = [
+  { id: "high", label: "High (I control my time)", risk: 0 },
+  { id: "medium", label: "Medium", risk: 30 },
+  { id: "low", label: "Low", risk: 70 },
+  { id: "none", label: "None (completely scheduled)", risk: 100 },
+];
+
+const WORK_LIFE_CONFLICT = [
+  { id: "low", label: "Low", risk: 0 },
+  { id: "medium", label: "Medium", risk: 35 },
+  { id: "high", label: "High", risk: 70 },
+  { id: "extreme", label: "Extreme", risk: 100 },
+];
+
+const HYDRATION = [
+  { id: "poor", label: "Poor (rarely drinking water)", risk: 100 },
+  { id: "ok", label: "Okay (some water)", risk: 60 },
+  { id: "good", label: "Good (regular hydration)", risk: 0 },
+];
+
+const CAFFEINE = [
+  { id: "low", label: "Low (minimal caffeine)", risk: 0 },
+  { id: "moderate", label: "Moderate (steady use)", risk: 20 },
+  { id: "high_crash", label: "High with crashes (over-reliant)", risk: 80 },
+];
+
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+function computeSubscores(a) {
+  const sleepHoursDist = Math.abs(a.sleepHours - 7.5);
+  const sleepHoursPenalty = Math.min(sleepHoursDist * 15, 50);
+  const sleepQualityPenalty = (5 - a.sleepQuality) * 20;
+  const sleepScore = Math.max(0, 100 - sleepHoursPenalty - sleepQualityPenalty);
+
+  const hoursPenalty = Math.min(Math.abs(a.totalWorkHours - 45) / 35 * 60, 60);
+  const demandDaysPenalty = (a.highDemandDaysCount / 7) * 40;
+  const timePressureRisk = TIME_PRESSURE.find((o) => o.id === a.timePressure)?.risk ?? 25;
+  const scheduleControlRisk = SCHEDULE_CONTROL.find((o) => o.id === a.scheduleControl)?.risk ?? 30;
+  const workLifeRisk = WORK_LIFE_CONFLICT.find((o) => o.id === a.workLifeConflict)?.risk ?? 35;
+  const workloadScore = Math.max(0, 100 - (hoursPenalty + demandDaysPenalty + (timePressureRisk + scheduleControlRisk + workLifeRisk) / 3));
+
+  const movementDays = Math.min(a.exerciseDays, 5);
+  const movementScore = (movementDays / 5) * 70 + (a.recovery.length / RECOVERY.length) * 30;
+
+  const stressRisk = a.stressLevel * 10;
+  const symptomRisk = (a.symptoms.length / SYMPTOMS.length) * 100;
+  const workFeelRisk = WORK_FEEL.find((o) => o.id === a.workFeel)?.risk ?? 30;
+  const emotionalScore = Math.max(0, 100 - ((stressRisk + symptomRisk + workFeelRisk) / 3));
+
+  const screenPenalty = Math.min((a.screenHours - 4) / 8 * 60, 60);
+  const preBedRisk = PRE_BED.find((o) => o.id === a.preBed)?.risk ?? 50;
+  const caffeineRisk = CAFFEINE.find((o) => o.id === a.caffeinePattern)?.risk ?? 20;
+  const focusScore = Math.max(0, 100 - (screenPenalty + preBedRisk / 2 + caffeineRisk / 2));
+
+  const balancedDaysBonus = (a.nutritionBalancedMealsDays / 7) * 60;
+  const processedDaysPenalty = (a.nutritionHighProcessedDays / 7) * 40;
+  const hydrationRisk = HYDRATION.find((o) => o.id === a.hydrationQuality)?.risk ?? 60;
+  const nutritionScore = Math.round(clamp(100 - hydrationRisk / 2 - processedDaysPenalty + balancedDaysBonus, 0, 100));
+
+  return {
+    Recharge: Math.round(sleepScore),
+    Load: Math.round(workloadScore),
+    Restoration: Math.round(movementScore),
+    "Stress Load": Math.round(emotionalScore),
+    Attention: Math.round(focusScore),
+    Fuel: Math.round(nutritionScore),
+  };
+}
+
+function computeCharge(subscores, prevCharge) {
+  const charge =
+    0.30 * subscores.Recharge +
+    0.25 * subscores.Load +
+    0.20 * subscores.Restoration +
+    0.15 * subscores["Stress Load"] +
+    0.10 * subscores.Attention +
+    0.05 * subscores.Fuel;
+
+  let final = Math.round(charge);
+  if (prevCharge != null) final += (final - prevCharge) * 0.15;
+  return Math.round(clamp(final, 0, 100));
+}
+
+function findPrimaryDrag(subscores) {
+  if (!subscores || Object.keys(subscores).length === 0) return "Sleep";
+  const [name] = Object.entries(subscores).sort((a, b) => a[1] - b[1])[0];
+  return name;
+}
+
+const STATES = [
+  { name: "Peak", min: 81, max: 100, desc: "Full capacity. Systems primed — deploy it on what matters most." },
+  { name: "Strong", min: 66, max: 80, desc: "High capacity with headroom. Protect recovery to reach Peak." },
+  { name: "Recovering", min: 46, max: 65, desc: "Capacity is rebuilding. Managing load strategically pays off this week." },
+  { name: "Rebuild", min: 0, max: 45, desc: "Reserves are low. Recovery is your highest-leverage performance move." },
+];
+
+const stateOf = (c) => STATES.find((s) => c >= s.min) || STATES[STATES.length - 1];
+
+const AGE_BRACKETS = [
+  { id: "18-24", label: "18–24", avg: 54 },
+  { id: "25-34", label: "25–34", avg: 49 },
+  { id: "35-44", label: "35–44", avg: 47 },
+  { id: "45-54", label: "45–54", avg: 50 },
+  { id: "55+", label: "55+", avg: 56 },
+];
+
+const AVG_CHARGE = 52;
+const bracketOf = (id) => AGE_BRACKETS.find((b) => b.id === id) || null;
+const avgFor = (ageBracket) => bracketOf(ageBracket)?.avg ?? AVG_CHARGE;
+const cohortLabel = (ageBracket) => {
+  const b = bracketOf(ageBracket);
+  return b ? `adults ${b.label}` : "working adults";
+};
+
+function chargeHue(c) {
+  return c <= 50 ? 8 + (c / 50) * 32 : 40 + ((c - 50) / 50) * 132;
+}
+
+const chargeColor = (c, s = 85, l = 58) => `hsl(${chargeHue(c)}, ${s}%, ${l}%)`;
+
+function percentile(c, avg = AVG_CHARGE) {
+  const z = (c - avg) / 15;
+  const t = 1 / (1 + 0.3275911 * Math.abs(z));
+  const erf = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-z * z);
+  const p = 0.5 * (1 + Math.sign(z) * erf);
+  return Math.round(clamp(p * 100, 1, 99));
+}
+
+const QUESTIONS = [
+  { key: "sleepHours", domain: "Sleep", title: "Hours of sleep on a typical night this week?", type: "slider", min: 3, max: 10, step: 0.5, unit: "hrs" },
+  { key: "sleepQuality", domain: "Sleep", title: "How recharged did you wake up?", type: "scale", labels: ["Empty", "Low", "Okay", "Good", "Full"] },
+  { key: "totalWorkHours", domain: "Workload", title: "Total hours worked or studied this week?", type: "slider", min: 20, max: 80, step: 1, unit: "hrs" },
+  { key: "highDemandDaysCount", domain: "Workload", title: "How many days felt back-to-back or intense?", type: "slider", min: 0, max: 7, step: 1, unit: "days" },
+  { key: "timePressure", domain: "Workload", title: "How much time pressure did you feel?", type: "chips", options: TIME_PRESSURE },
+  { key: "scheduleControl", domain: "Workload", title: "How much control do you have over your schedule?", type: "chips", options: SCHEDULE_CONTROL },
+  { key: "workLifeConflict", domain: "Workload", title: "How much did work conflict with personal time?", type: "chips", options: WORK_LIFE_CONFLICT },
+  { key: "stressLevel", domain: "Emotional", title: "How stressed did you feel on most days? (1 = calm, 10 = maxed out)", type: "slider", min: 1, max: 10, step: 1, unit: "/ 10" },
+  { key: "symptoms", domain: "Emotional", title: "Any physical stress signals this week?", subtitle: "Select all that apply", type: "multi", options: SYMPTOMS, none: "None of these" },
+  { key: "workFeel", domain: "Emotional", title: "Starting work most mornings, you felt…", type: "chips", options: WORK_FEEL },
+  { key: "exerciseDays", domain: "Recovery", title: "How many days did you exercise or move intentionally?", type: "slider", min: 0, max: 7, step: 1, unit: "days" },
+  { key: "recovery", domain: "Recovery", title: "Which recovery activities happened this week?", subtitle: "Select all that apply", type: "multi", options: RECOVERY, none: "None of these" },
+  { key: "screenHours", domain: "Focus", title: "Average daily screen time?", type: "slider", min: 2, max: 14, step: 0.5, unit: "hrs" },
+  { key: "preBed", domain: "Focus", title: "Screens in the 30 minutes before sleep?", type: "chips", options: PRE_BED },
+  { key: "nutritionBalancedMealsDays", domain: "Nutrition", title: "Days with regular, balanced meals?", subtitle: "A balanced meal has protein + whole grains + vegetables. Not skipped meals or just snacks.", type: "slider", min: 0, max: 7, step: 1, unit: "days" },
+  { key: "nutritionHighProcessedDays", domain: "Nutrition", title: "Days mostly fast food or ultra-processed?", subtitle: "Fast food, instant noodles, packaged snacks, sugary drinks. Count days where these were most of your eating.", type: "slider", min: 0, max: 7, step: 1, unit: "days" },
+  { key: "hydrationQuality", domain: "Nutrition", title: "How was your hydration this week?", subtitle: "Good = consistent water intake throughout the day. Okay = some water, but forgetting often. Poor = rarely drank water.", type: "chips", options: HYDRATION },
+  { key: "caffeinePattern", domain: "Nutrition", title: "Your caffeine use was…", type: "chips", options: CAFFEINE },
+  { key: "tasksCompleted", domain: "Performance", title: "High-leverage tasks or goals completed this week?", subtitle: "Count meaningful work: shipped features, closed deals, solved hard problems. Not meetings or admin.", type: "slider", min: 0, max: 20, step: 1, unit: "tasks" },
+  { key: "outputQuality", domain: "Performance", title: "Quality of work this week?", type: "chips", options: [
+    { id: "excellent", label: "Excellent — best-quality work" },
+    { id: "good", label: "Good — solid, ship-ready" },
+    { id: "okay", label: "Okay — functional, some rework" },
+    { id: "slipping", label: "Slipping — errors, rework needed" },
+    { id: "compromised", label: "Compromised — rushed, low bar" }
+  ]},
+  { key: "openDecisions", domain: "Cognitive Load", title: "How many open decisions/projects are you juggling?", subtitle: "Estimate: decisions you're holding, projects in flight, ideas you haven't closed. Typical range: 5–15.", type: "slider", min: 0, max: 50, step: 1, unit: "decisions" },
+  { key: "contextSwitches", domain: "Cognitive Load", title: "How many times per day did you switch between tasks/meetings/chats?", subtitle: "Rough estimate: Count major focus shifts. High switching = decreased attention.", type: "slider", min: 2, max: 20, step: 1, unit: "switches" },
+  { key: "deepWorkBlocks", domain: "Cognitive Load", title: "Uninterrupted deep work blocks this week?", subtitle: "Count blocks of 90+ minutes of focused work without distractions.", type: "slider", min: 0, max: 15, step: 1, unit: "blocks" },
+];
+
+const DEFAULT_ANSWERS = {
+  ageBracket: null,
+  sleepHours: 7, sleepQuality: 3,
+  totalWorkHours: 45, highDemandDaysCount: 2, timePressure: null, scheduleControl: null, workLifeConflict: null,
+  stressLevel: 5, symptoms: [], workFeel: null,
+  exerciseDays: 3, recovery: [],
+  screenHours: 6, preBed: null,
+  nutritionBalancedMealsDays: 4, nutritionHighProcessedDays: 1, hydrationQuality: null, caffeinePattern: null,
+  tasksCompleted: 5, outputQuality: null,
+  openDecisions: 8, contextSwitches: 10, deepWorkBlocks: 3,
+};
+
+async function loadState() {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    const s = stored ? JSON.parse(stored) : {};
+    return { 
+      history: s.history || [], 
+      user: s.user || null, 
+      profile: s.profile || {}, 
+      activeCommitment: s.activeCommitment || null 
+    };
+  } catch {
+    return { history: [], user: null, profile: {}, activeCommitment: null };
+  }
+}
+
+async function saveState(state) {
+  try { 
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); 
+  } catch (e) { 
+    console.error("save failed", e); 
+  }
+}
+
+function streakOf(history) {
+  if (!history.length) return 0;
+  let streak = 1;
+  for (let i = history.length - 1; i > 0; i--) {
+    const gap = (new Date(history[i].date) - new Date(history[i - 1].date)) / 86400000;
+    if (gap <= 9) streak++; else break;
+  }
+  return streak;
+}
+
+const fmtDate = (iso) => new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+
+function ChargeCell({ charge, size = 260, animate = true, pulse = false }) {
+  const [shown, setShown] = useState(animate ? 0 : charge);
+  useEffect(() => {
+    if (!animate) { setShown(charge); return; }
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduced) { setShown(charge); return; }
+    let raf, start;
+    const dur = 1500;
+    const tick = (t) => {
+      if (!start) start = t;
+      const p = Math.min((t - start) / dur, 1);
+      setShown(Math.round((1 - Math.pow(1 - p, 3)) * charge));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [charge, animate]);
+
+  const cx = size / 2, cy = size / 2;
+  const R1 = size / 2 - 8, R2 = size / 2 - 26;
+  const N = 48;
+  const filled = Math.round((shown / 100) * N);
+  const hue = chargeHue(shown);
+  const col = `hsl(${hue}, 85%, 58%)`;
+  const st = stateOf(shown);
+
+  const ticks = [];
+  for (let i = 0; i < N; i++) {
+    const ang = ((135 + (270 * i) / (N - 1)) * Math.PI) / 180;
+    const x1 = cx + R2 * Math.cos(ang), y1 = cy + R2 * Math.sin(ang);
+    const x2 = cx + R1 * Math.cos(ang), y2 = cy + R1 * Math.sin(ang);
+    const on = i < filled;
+    ticks.push(
+      React.createElement("line", {
+        key: i, x1, y1, x2, y2,
+        stroke: on ? col : "rgba(255,255,255,0.09)",
+        strokeWidth: 3.2, strokeLinecap: "round",
+        style: on ? { filter: `drop-shadow(0 0 5px hsla(${hue},90%,60%,0.7))` } : undefined
+      })
+    );
+  }
+
+  return React.createElement("div", { className: `cell-wrap ${pulse ? "pulsing" : ""}`, style: { width: size, height: size } },
+    React.createElement("div", { className: "cell-halo", style: { background: `radial-gradient(circle, hsla(${hue},90%,55%,0.14) 0%, transparent 65%)` } }),
+    React.createElement("svg", { width: size, height: size, viewBox: `0 0 ${size} ${size}`, className: "cell-svg" }, ticks),
+    React.createElement("div", { className: "cell-center" },
+      React.createElement("div", { className: "cell-eyebrow" }, "Your NEURL Score"),
+      React.createElement("div", { className: "cell-num", style: { color: col } },
+        shown,
+        React.createElement("span", { className: "cell-pct" }, "%")
+      ),
+      React.createElement("div", { className: "cell-state" }, st.name)
+    )
+  );
+}
+
+const ADJUSTMENTS = {
+  Recharge: {
+    title: "Set a performance-grade sleep window",
+    tip: "Lock a fixed wake time for 7 days — consistency raises baseline NEURL Score faster than extra hours. Usually adds +5–10% over 3 weeks.",
+  },
+  Load: {
+    title: "Delete one recurring obligation that doesn't move your top goals",
+    tip: "Load is compressing your capacity. Identify one recurring commitment to delegate, defer, or delete before Monday. Usually adds +5–10% over 3 weeks.",
+  },
+  Restoration: {
+    title: "Lock three non-negotiable physical recovery blocks",
+    tip: "Movement and restoration are limiting. Commit to 3+ sessions of intentional exercise or restorative activity this week; treat them like investor meetings. Usually adds +5–10% over 3 weeks.",
+  },
+  "Stress Load": {
+    title: "Install a hard stop",
+    tip: "Stress load is high. Set one non-negotiable end to your workday this week and defend it like a client meeting. Usually adds +5–10% over 3 weeks.",
+  },
+  Attention: {
+    title: "Build a shutdown buffer",
+    tip: "Screen exposure is draining overnight attention. A 30-minute screen-free buffer before sleep is the highest-leverage adjustment. Usually adds +5–10% over 3 weeks.",
+  },
+  Fuel: {
+    title: "Commit to regular, balanced meals",
+    tip: "Nutrition is your limiting factor. Commit to regular, balanced meals 6 days this week — sustained energy beats caffeine crashes. Usually adds +5–10% over 3 weeks.",
+  },
+};
+
+function ShareCard({ charge, best }) {
+  const [copied, setCopied] = useState(false);
+  const text = `My NEURL Score this week: ${charge}% ⚡\nOperating in ${stateOf(charge).name} mode.\n\nNEURL OS is an AI-powered performance intelligence system.\nWeekly calibration → Predictive NEURL Score → Performance optimization.\n\nTrack what matters: productivity, focus, capacity, resilience.\n\nJoin at https://neurl.os`;
+  
+  const shareViaText = () => {
+    const msg = encodeURIComponent(text);
+    window.location.href = `sms:?body=${msg}`;
+  };
+  
+  const shareViaEmail = () => {
+    const mailto = `mailto:?subject=${encodeURIComponent(`My Charge this week: ${charge}% ⚡`)}&body=${encodeURIComponent(text)}`;
+    window.location.href = mailto;
+  };
+  
+  const copyInvite = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch { }
+  };
+  
+  return React.createElement("div", { className: "card center-text" },
+    React.createElement("div", { className: "eyebrow" }, "Performance Leaderboard"),
+    React.createElement("p", { className: "card-p" }, "High performers thrive on accountability. Share your NEURL Score with peers, teams, and friends. Weekly rankings. Monthly improvement streaks. Push each other higher."),
+    React.createElement("div", { className: "share-row" },
+      React.createElement("button", { className: "btn-primary share-btn", onClick: shareViaText }, "Share via Text"),
+      React.createElement("button", { className: "btn-secondary share-btn", onClick: shareViaEmail }, "Share via Email"),
+      React.createElement("button", { className: "btn-secondary share-btn", onClick: copyInvite }, copied ? "Copied ✓" : "Copy Link")
+    ),
+    copied && React.createElement("p", { className: "fine", style: { marginTop: 12, color: "var(--ink)", opacity: 1 } }, "Paste into any message to share your NEURL Score")
+  );
+}
+
+export default function App() {
+  const [view, setView] = useState("loading");
+  const [state, setState] = useState({ history: [], user: null, profile: {}, activeCommitment: null });
+  const [step, setStep] = useState(0);
+  const [answers, setAnswers] = useState({ ...DEFAULT_ANSWERS });
+  const [dir, setDir] = useState(1);
+  const topRef = useRef(null);
+
+  useEffect(() => {
+    loadState().then((s) => {
+      setState(s);
+      setView(s.history.length ? "today" : "welcome");
+    });
+  }, []);
+
+  const latest = state.history[state.history.length - 1] || null;
+  const prev = state.history[state.history.length - 2] || null;
+  const best = state.history.length ? Math.max(...state.history.map((e) => e.charge)) : null;
+  const bracket = state.profile?.ageBracket || null;
+  const avg = avgFor(bracket);
+
+  const questions = useMemo(() => {
+    const ageQ = {
+      key: "ageBracket", domain: "Profile",
+      title: "What's your age range?",
+      subtitle: "Your NEURL Score is compared against the average for your age group",
+      type: "chips", options: AGE_BRACKETS,
+    };
+    return bracket ? QUESTIONS : [ageQ, ...QUESTIONS];
+  }, [bracket]);
+
+  const q = questions[step];
+  const answered = (qq) => (qq.type === "chips" ? answers[qq.key] != null : true);
+
+  const next = () => {
+    setDir(1);
+    if (step < questions.length - 1) setStep(step + 1);
+    else finish();
+    topRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const back = () => { setDir(-1); setStep(Math.max(0, step - 1)); };
+
+  const finish = async () => {
+    const subscores = computeSubscores(answers);
+    const charge = computeCharge(subscores, latest?.charge ?? null);
+    
+    const entry = {
+      date: new Date().toISOString(),
+      charge,
+      subscores,
+    };
+    
+    const profile = answers.ageBracket ? { ...state.profile, ageBracket: answers.ageBracket } : state.profile;
+    const nextState = { ...state, profile, history: [...state.history, entry] };
+    setState(nextState);
+    setView("reveal");
+    await saveState(nextState);
+  };
+
+  const set = (key, val) => setAnswers((a) => ({ ...a, [key]: val }));
+  const toggle = (key, item) =>
+    setAnswers((a) => ({ ...a, [key]: a[key].includes(item) ? a[key].filter((x) => x !== item) : [...a[key], item] }));
+
+  const start = () => {
+    setAnswers({ ...DEFAULT_ANSWERS });
+    setStep(0);
+    setDir(1);
+    setView("checkin");
+  };
+
+  const styles = `
+    @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap');
+    * { box-sizing: border-box; margin: 0; }
+    body { background: #0A0C0F; color: #F2F4F7; font-family: 'Inter', system-ui, sans-serif; }
+    .app { min-height: 100vh; background: #0A0C0F; color: #F2F4F7; }
+    .shell { max-width: 1200px; margin: 0 auto; padding: 28px 20px 56px; }
+    .wordmark { font-family: 'Archivo', sans-serif; font-weight: 600; font-size: 14px; letter-spacing: 0.34em; margin-bottom: 30px; }
+    .center-col { display: flex; flex-direction: column; align-items: center; text-align: center; }
+    .hero-h { font-family: 'Archivo', sans-serif; font-weight: 700; font-size: 32px; line-height: 1.16; margin: 28px 0 14px; max-width: 600px; }
+    .hero-p { color: #B0B9C6; font-size: 16px; line-height: 1.6; max-width: 600px; margin-bottom: 30px; }
+    .fine { color: #A0A9B8; font-size: 12px; margin-top: 16px; }
+    .eyebrow { font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 10.5px; letter-spacing: 0.22em; text-transform: uppercase; color: #8B93A1; margin-bottom: 12px; }
+    .btn-primary { font-family: 'Archivo', sans-serif; font-weight: 700; font-size: 15px; background: #F2F4F7; color: #0A0C0F; border: none; border-radius: 100px; padding: 16px 30px; cursor: pointer; }
+    .btn-secondary { font-family: 'Archivo', sans-serif; font-weight: 600; font-size: 13.5px; background: transparent; color: #F2F4F7; border: 1.5px solid rgba(255,255,255,0.08); border-radius: 100px; padding: 12px 22px; cursor: pointer; }
+    .btn-ghost { background: none; border: none; color: #8B93A1; font-size: 14.5px; cursor: pointer; }
+    .cell-wrap { position: relative; display: grid; place-items: center; }
+    .cell-center { position: absolute; display: flex; flex-direction: column; align-items: center; }
+    .cell-eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 8px; font-weight: 600; letter-spacing: 0.16em; color: #8B93A1; margin-bottom: 4px; }
+    .cell-num { font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 62px; letter-spacing: -0.035em; display: flex; align-items: center; }
+    .cell-pct { font-size: 26px; font-weight: 700; opacity: 0.7; margin-left: 2px; }
+    .cell-state { font-family: 'Archivo', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 0.14em; margin-top: 8px; }
+    .cell-halo { position: absolute; inset: -16%; border-radius: 50%; }
+    .cell-wrap svg { position: relative; }
+    .q-title { font-family: 'Archivo', sans-serif; font-weight: 700; font-size: 23px; line-height: 1.24; margin-bottom: 6px; }
+    .q-sub { color: #8B93A1; font-size: 14px; margin-bottom: 4px; }
+    .slider { -webkit-appearance: none; width: 100%; height: 5px; border-radius: 6px; background: rgba(255,255,255,0.08); }
+    .slider::-webkit-slider-thumb { -webkit-appearance: none; width: 30px; height: 30px; border-radius: 50%; background: #F2F4F7; cursor: pointer; }
+    .chip { background: #121519; border: 1.5px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 16px 18px; font-size: 15px; color: #F2F4F7; text-align: left; cursor: pointer; width: 100%; margin-bottom: 10px; }
+    .chip.on { border-color: #F2F4F7; background: #F2F4F7; color: #0A0C0F; }
+    .card { background: #121519; border-radius: 20px; padding: 20px; margin-bottom: 14px; border: 1px solid rgba(255,255,255,0.08); }
+    .card-p { color: #8B93A1; font-size: 14px; line-height: 1.6; }
+    .center-text { text-align: center; }
+    .share-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
+    .share-btn { text-decoration: none; display: inline-block; padding: 12px 16px; font-size: 13px; flex: 1 1 calc(50% - 5px); min-width: 140px; }
+    .fade-in { animation: fade .45s ease both; }
+    @keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; } }
+    .loading-dot { width: 10px; height: 10px; border-radius: 50%; background: #8B93A1; margin: 40vh auto 0; animation: pulse 1s ease infinite alternate; }
+    @keyframes pulse { from { opacity: 0.3; } to { opacity: 1; } }
+  `;
+
+  return React.createElement("div", { className: "app" },
+    React.createElement("style", null, styles),
+    React.createElement("div", { ref: topRef }),
+    React.createElement("div", { className: "shell" },
+      view === "loading" && React.createElement("div", { className: "loading-dot" }),
+      
+      view === "welcome" && React.createElement("div", { className: "fade-in center-col" },
+        React.createElement("div", { className: "wordmark" }, "NEURL OS"),
+        React.createElement(ChargeCell, { charge: 86, animate: false, size: 220, pulse: true }),
+        React.createElement("h1", { className: "hero-h" }, "The Operating System for Peak Performance"),
+        React.createElement("p", { className: "hero-p" }, "NEURL OS transforms your weekly habits into a predictive performance model. Get your NEURL Score, forecast next week's capacity, and stay at your best before burnout begins."),
+        React.createElement("button", { className: "btn-primary", onClick: start }, "Get Your NEURL Score"),
+        React.createElement("div", { className: "fine" }, "2-minute weekly calibration · Your data, private · Login optional")
+      ),
+      
+      view === "checkin" && q && React.createElement("div", { className: "fade-in" },
+        React.createElement("button", { className: "btn-ghost", onClick: () => (step === 0 ? setView("welcome") : back()) }, step === 0 ? "‹ Close" : "‹ Back"),
+        React.createElement("div", { className: "eyebrow" }, q.domain + " · Performance input"),
+        React.createElement("h2", { className: "q-title" }, q.title),
+        q.subtitle && React.createElement("p", { className: "q-sub" }, q.subtitle),
+        
+        q.type === "slider" && React.createElement("div", { style: { marginTop: 34 } },
+          React.createElement("div", { style: { fontFamily: "'Archivo', sans-serif", fontWeight: 800, fontSize: 54, textAlign: "center", marginBottom: 24 } }, 
+            answers[q.key], 
+            React.createElement("span", { style: { fontSize: 19, fontWeight: 600, color: "#8B93A1", marginLeft: 6 } }, q.unit)
+          ),
+          React.createElement("input", { type: "range", min: q.min, max: q.max, step: q.step, value: answers[q.key], onChange: (e) => set(q.key, parseFloat(e.target.value)), className: "slider" })
+        ),
+        
+        q.type === "scale" && React.createElement("div", { style: { display: "flex", gap: 7, marginTop: 28 } },
+          q.labels.map((lab, i) => React.createElement("button", { key: i, style: { flex: 1, background: answers[q.key] === i + 1 ? "#F2F4F7" : "#121519", color: answers[q.key] === i + 1 ? "#0A0C0F" : "#F2F4F7", border: "1.5px solid " + (answers[q.key] === i + 1 ? "#F2F4F7" : "rgba(255,255,255,0.08)"), borderRadius: 14, padding: 14, cursor: "pointer" }, onClick: () => set(q.key, i + 1) },
+            React.createElement("div", { style: { fontFamily: "'Archivo', sans-serif", fontWeight: 700, fontSize: 17 } }, i + 1),
+            React.createElement("div", { style: { fontSize: 9.5, marginTop: 6 } }, lab)
+          ))
+        ),
+        
+        q.type === "chips" && React.createElement("div", { style: { marginTop: 26 } },
+          q.options.map((o) => React.createElement("button", { key: o.id, className: "chip" + (answers[q.key] === o.id ? " on" : ""), onClick: () => set(q.key, o.id) }, o.label))
+        ),
+        
+        q.type === "multi" && React.createElement("div", { style: { marginTop: 26 } },
+          q.options.map((o) => React.createElement("button", { key: o, className: "chip" + (answers[q.key].includes(o) ? " on" : ""), onClick: () => toggle(q.key, o) }, o)),
+          React.createElement("button", { className: "chip" + (answers[q.key].length === 0 ? " on" : ""), onClick: () => set(q.key, []) }, q.none)
+        ),
+        
+        React.createElement("button", { className: "btn-primary", disabled: !answered(q), onClick: next, style: { width: "100%", marginTop: 34 } }, step === questions.length - 1 ? "Get my NEURL Score" : "Continue")
+      ),
+      
+      view === "reveal" && latest && React.createElement("div", { className: "fade-in center-col" },
+        React.createElement("div", { className: "eyebrow", style: { marginBottom: 10 } }, "This week's reading"),
+        React.createElement(ChargeCell, { charge: latest.charge }),
+        React.createElement("p", { style: { color: "#8B93A1", fontSize: 15, marginTop: 12 } }, stateOf(latest.charge).desc),
+        React.createElement("div", { className: "card", style: { marginTop: 16 } },
+          React.createElement("div", { className: "eyebrow" }, "Your performance ranking"),
+          React.createElement("p", { className: "card-p", style: { fontSize: 18, marginBottom: 8 } }, percentile(latest.charge, avg) + "th percentile")
+        ),
+        React.createElement(ShareCard, { charge: latest.charge, best: best }),
+        React.createElement("button", { className: "btn-primary", onClick: () => setView("today"), style: { marginTop: 12 } }, "View Your Dashboard"),
+        React.createElement("div", { className: "fine", style: { marginTop: 30, textAlign: "center" } }, "NEURL OS is a performance-awareness tool. For health concerns, consult with a healthcare professional.")
+      ),
+      
+      view === "today" && latest && React.createElement("div", { className: "fade-in center-col" },
+        React.createElement("div", { className: "wordmark" }, "CHARGE"),
+        React.createElement(ChargeCell, { charge: latest.charge, animate: false, size: 230 }),
+        React.createElement("div", { className: "fine", style: { marginTop: 14 } }, "Read " + fmtDate(latest.date)),
+        React.createElement("div", { className: "card", style: { marginTop: 16 } },
+          React.createElement("div", { className: "eyebrow" }, "Summary"),
+          React.createElement("p", { className: "card-p" }, `You're in the ${stateOf(latest.charge).name.toLowerCase()} zone. Keep calibrating weekly to track patterns.`)
+        ),
+        React.createElement(ShareCard, { charge: latest.charge, best: best }),
+        React.createElement("button", { className: "btn-primary", onClick: start, style: { width: "100%", marginTop: 14 } }, "Take this week's reading")
+      )
+    )
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+  </script>
 </body>
 </html>
