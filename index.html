@@ -4,8 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NEURL-OS — The Operating System for Peak Performance</title>
-  <meta name="description" content="NEURL-OS is a 2-minute weekly calibration that transforms your weekly habits into a predictive model of your performance.">
-  <!-- Google tag (gtag.js) -->
+  <meta name="description" content="NEURL-OS is a free 2-minute weekly calibration that transforms your weekly habits into a predictive model of your performance.">
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-JCWHCCMJHQ"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
@@ -25,7 +24,6 @@
     document.body.appendChild(el);
   });
   </script>
-  <!-- React 18.3.1 inlined: zero external dependencies -->
   <script>/**
  * @license React
  * react.production.min.js
@@ -327,7 +325,6 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 })();
 </script>
   <script>
-// window.storage shim: same API as the artifact storage, backed by localStorage
 if (!window.storage) {
   window.storage = {
     async get(key) {
@@ -1170,9 +1167,9 @@ function ChargeContext({
     className: "card"
   }, /*#__PURE__*/React.createElement("div", {
     className: "eyebrow"
-  }, "Reading your Charge"), /*#__PURE__*/React.createElement("p", {
+  }, "Reading your NEURL Score"), /*#__PURE__*/React.createElement("p", {
     className: "ctx-p"
-  }, "Charge is your performance capacity — the battery your habits build. ", /*#__PURE__*/React.createElement("strong", null, "100 is full capacity"), ", primed to perform. The average for ", cohort, " is around", " ", /*#__PURE__*/React.createElement("strong", null, avg, "%"), ". Sustained performance lives at ", /*#__PURE__*/React.createElement("strong", null, PEAK_MIN, "%+"), " — that's the zone to build toward and defend. ", /*#__PURE__*/React.createElement("strong", null, "Burnout is what happens when you run negative for too long.")), /*#__PURE__*/React.createElement("div", {
+  }, "Your NEURL Score is your performance capacity — the battery your habits build. ", /*#__PURE__*/React.createElement("strong", null, "100 is full capacity"), ", primed to perform. The average for ", cohort, " is around", " ", /*#__PURE__*/React.createElement("strong", null, avg, "%"), ". Sustained performance lives at ", /*#__PURE__*/React.createElement("strong", null, PEAK_MIN, "%+"), " — that's the zone to build toward and defend. ", /*#__PURE__*/React.createElement("strong", null, "Burnout is what happens when you run negative for too long.")), /*#__PURE__*/React.createElement("div", {
     className: "gauge"
   }, /*#__PURE__*/React.createElement("div", {
     className: "gauge-tag you-tag",
@@ -1353,7 +1350,7 @@ const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 
 function shareText(charge, best) {
   const st = stateOf(charge);
-  return `My NEURL Score this week: ${charge}% ⚡\n` + `Operating in ${st.name} mode.\n\n` + `NEURL OS is an AI-powered performance intelligence system.\n` + `Weekly calibration → Predictive NEURL Score → Performance optimization.\n` + `Track what matters: productivity, focus, capacity, resilience.\n\n` + `2-minute weekly calibration. See how you compare to your peers.\n` + `Join at https://neurl.os`;
+  return `My NEURL Score this week: ${charge}% ⚡\n` + `Operating in ${st.name} mode.\n\n` + `NEURL OS is an AI-powered performance intelligence system.\n` + `Weekly calibration → Predictive NEURL Score → Performance optimization.\n` + `Track what matters: productivity, focus, capacity, resilience.\n\n` + `2-minute weekly calibration. See how you compare to your peers.\n` + `Join at https://neurl-os.com`;
 }
 function ShareCard({
   charge,
@@ -1366,7 +1363,7 @@ function ShareCard({
     window.location.href = `sms:?body=${msg}`;
   };
   const shareViaEmail = () => {
-    const mailto = `mailto:?subject=${encodeURIComponent(`My Charge this week: ${charge}% ⚡`)}&body=${encodeURIComponent(text)}`;
+    const mailto = `mailto:?subject=${encodeURIComponent(`My NEURL Score this week: ${charge}% ⚡`)}&body=${encodeURIComponent(text)}`;
     window.location.href = mailto;
   };
   const copyInvite = async () => {
@@ -2631,7 +2628,7 @@ function App() {
     className: "dash-head"
   }, /*#__PURE__*/React.createElement("div", {
     className: "wordmark sm"
-  }, "CHARGE"), state.user ? /*#__PURE__*/React.createElement("div", {
+  }, "NEURL-OS"), state.user ? /*#__PURE__*/React.createElement("div", {
     className: "streak"
   }, "⚡ ", streak, "-week streak") : /*#__PURE__*/React.createElement("button", {
     className: "streak streak-btn",
