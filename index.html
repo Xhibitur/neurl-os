@@ -325,27 +325,51 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 })();
 </script>
   <script>
+/* Lightweight analytics -> Google Analytics only */
+function neurlLog(event) {
+  try {
+    if (window.gtag) gtag('event', event);
+  } catch (e) {}
+}
+try {
+  if (!sessionStorage.getItem("neurl:visited")) {
+    sessionStorage.setItem("neurl:visited", "1");
+    neurlLog("visit");
+  }
+} catch (e) {}
 if (!window.storage) {
   window.storage = {
     async get(key) {
-      const v = localStorage.getItem(key);
+      var v = localStorage.getItem(key);
       if (v === null) throw new Error("Key not found: " + key);
       return {
-        key,
+        key: key,
         value: v
       };
     },
     async set(key, value) {
+      try {
+        if (key === "charge:v1") {
+          var next = JSON.parse(value);
+          var prevRaw = localStorage.getItem(key);
+          var prev = prevRaw ? JSON.parse(prevRaw) : {};
+          var prevLen = (prev.history || []).length,
+            nextLen = (next.history || []).length;
+          if (nextLen > prevLen) neurlLog("calibration");
+          if (nextLen === 1 && prevLen === 0) neurlLog("first_calibration");
+          if (next.user && !prev.user) neurlLog("signup");
+        }
+      } catch (e) {}
       localStorage.setItem(key, value);
       return {
-        key,
-        value
+        key: key,
+        value: value
       };
     },
     async delete(key) {
       localStorage.removeItem(key);
       return {
-        key,
+        key: key,
         deleted: true
       };
     }
