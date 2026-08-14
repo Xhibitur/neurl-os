@@ -325,7 +325,6 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 })();
 </script>
   <script>
-/* ============ Push Notifications + 7-day Reminders ============ */
 function neurlLog(event) {
   try {
     if (window.gtag) gtag('event', event);
@@ -337,11 +336,8 @@ try {
     neurlLog("visit");
   }
 } catch (e) {}
-
-// Push notification opt-in and storage
 var NEURL_PUSH = {
   VAPID_PUBLIC_KEY: "",
-  // Leave empty to disable. Add your VAPID key when ready.
   enabled: false
 };
 async function neurlRegisterPush() {
@@ -356,12 +352,8 @@ async function neurlRegisterPush() {
       });
       if (sub) localStorage.setItem("neurl:push_sub", JSON.stringify(sub));
     }
-  } catch (e) {
-    console.log("Push registration skipped");
-  }
+  } catch (e) {}
 }
-
-// 7-day reminder nudge: check on every load
 function neurlCheckReminder() {
   try {
     var rawState = localStorage.getItem("charge:v1");
@@ -375,7 +367,6 @@ function neurlCheckReminder() {
     if (daysSince >= 7 && daysSince < 7.5) {
       neurlLog("reminder_due");
       localStorage.setItem("neurl:reminder_shown", Date.now());
-      // Show on-site nudge (app will pick this up)
       window.NEURL_SHOW_REMINDER = true;
     }
   } catch (e) {}
@@ -1758,7 +1749,67 @@ function App() {
     className: "shell"
   }, view === "loading" && /*#__PURE__*/React.createElement("div", {
     className: "loading-dot"
-  }), view === "welcome" && /*#__PURE__*/React.createElement("div", {
+  }), window.NEURL_SHOW_REMINDER && view === "welcome" && /*#__PURE__*/React.createElement("div", {
+    className: "app"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "shell"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fade-in",
+    style: {
+      textAlign: "center"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "rgba(56, 238, 102, 0.1)",
+      border: "1.5px solid #38EE66",
+      borderRadius: 20,
+      padding: 24,
+      marginBottom: 28
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow",
+    style: {
+      color: "#38EE66",
+      marginBottom: 8
+    }
+  }, "Welcome Back"), /*#__PURE__*/React.createElement("h2", {
+    className: "hero-h",
+    style: {
+      color: "#F2F4F7",
+      marginTop: 0,
+      marginBottom: 12
+    }
+  }, "It's been a week."), /*#__PURE__*/React.createElement("p", {
+    className: "hero-p"
+  }, "Your NEURL Score is waiting. See what changed."), /*#__PURE__*/React.createElement("button", {
+    className: "btn-primary",
+    onClick: () => {
+      setStep(0);
+      setView("checkin");
+      window.NEURL_SHOW_REMINDER = false;
+    },
+    style: {
+      marginTop: 20
+    }
+  }, "Get This Week's Score")), /*#__PURE__*/React.createElement("p", {
+    className: "fine",
+    style: {
+      marginTop: 20
+    }
+  }, "Or ", /*#__PURE__*/React.createElement("button", {
+    className: "btn-ghost",
+    onClick: () => {
+      setView("today");
+      window.NEURL_SHOW_REMINDER = false;
+    },
+    style: {
+      background: "none",
+      border: "none",
+      color: "#8B93A1",
+      cursor: "pointer",
+      textDecoration: "underline"
+    }
+  }, "view your dashboard"))))), view === "welcome" && /*#__PURE__*/React.createElement("div", {
     className: "fade-in center-col"
   }, /*#__PURE__*/React.createElement("div", {
     className: "wordmark"
