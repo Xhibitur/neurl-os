@@ -1,8 +1,2 @@
 [build]
-command = "npm run build || echo 'No build required'"
-publish = "public"
 functions = "netlify/functions"
-
-[[functions]]
-name = "send-reminders"
-schedule = "0 18 * * 0"
