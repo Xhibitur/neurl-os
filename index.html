@@ -337,23 +337,42 @@ try {
   }
 } catch (e) {}
 var NEURL_PUSH = {
-  VAPID_PUBLIC_KEY: "",
-  enabled: false
+  VAPID_PUBLIC_KEY: "BI-fVXzsYWAHKXushkv4R5NugvsbnYm8iMK6Ia6E7w7vVQI15jbpUhko8xnLaweN6dtLH9VHSn6pf9LhXZHIgXg",
+  enabled: true
 };
-async function neurlRegisterPush() {
-  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+function neurlUrlB64ToUint8(base64String) {
+  var padding = "=".repeat((4 - base64String.length % 4) % 4);
+  var base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  var raw = atob(base64);
+  var out = new Uint8Array(raw.length);
+  for (var i = 0; i < raw.length; ++i) out[i] = raw.charCodeAt(i);
+  return out;
+}
+window.neurlEnablePush = async function () {
   try {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false;
+    if (!NEURL_PUSH.enabled || !NEURL_PUSH.VAPID_PUBLIC_KEY) return false;
+    var perm = await Notification.requestPermission();
+    if (perm !== "granted") {
+      neurlLog("push_denied");
+      return false;
+    }
     var reg = await navigator.serviceWorker.register("/sw.js");
+    await navigator.serviceWorker.ready;
     var sub = await reg.pushManager.getSubscription();
-    if (!sub && NEURL_PUSH.enabled && NEURL_PUSH.VAPID_PUBLIC_KEY) {
+    if (!sub) {
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: NEURL_PUSH.VAPID_PUBLIC_KEY
+        applicationServerKey: neurlUrlB64ToUint8(NEURL_PUSH.VAPID_PUBLIC_KEY)
       });
-      if (sub) localStorage.setItem("neurl:push_sub", JSON.stringify(sub));
     }
-  } catch (e) {}
-}
+    localStorage.setItem("neurl:push_sub", JSON.stringify(sub));
+    neurlLog("push_enabled");
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
 function neurlCheckReminder() {
   try {
     var rawState = localStorage.getItem("charge:v1");
@@ -362,9 +381,8 @@ function neurlCheckReminder() {
     var hist = state.history || [];
     if (hist.length === 0) return;
     var last = hist[hist.length - 1];
-    var lastDate = new Date(last.date).getTime();
-    var daysSince = (Date.now() - lastDate) / (24 * 3600 * 1000);
-    if (daysSince >= 7 && daysSince < 7.5) {
+    var daysSince = (Date.now() - new Date(last.date).getTime()) / 86400000;
+    if (daysSince >= 7) {
       neurlLog("reminder_due");
       localStorage.setItem("neurl:reminder_shown", Date.now());
       window.NEURL_SHOW_REMINDER = true;
@@ -391,10 +409,7 @@ if (!window.storage) {
           var prevLen = (prev.history || []).length,
             nextLen = (next.history || []).length;
           if (nextLen > prevLen) neurlLog("calibration");
-          if (nextLen === 1 && prevLen === 0) {
-            neurlLog("first_calibration");
-            setTimeout(neurlRegisterPush, 2000);
-          }
+          if (nextLen === 1 && prevLen === 0) neurlLog("first_calibration");
           if (next.user && !prev.user) neurlLog("signup");
         }
       } catch (e) {}
@@ -994,8 +1009,8 @@ const QUESTIONS = [{
 }, {
   key: "tasksCompleted",
   domain: "Performance",
-  title: "High-leverage tasks or goals completed this week?",
-  subtitle: "Count meaningful work: shipped features, closed deals, solved hard problems. Not meetings or admin.",
+  title: "Important things you finished this week?",
+  subtitle: "Shipped work, closed deals, hard problems solved. Don't count meetings.",
   type: "slider",
   min: 0,
   max: 20,
@@ -1025,8 +1040,8 @@ const QUESTIONS = [{
 }, {
   key: "openDecisions",
   domain: "Cognitive Load",
-  title: "How many open decisions/projects are you juggling?",
-  subtitle: "Estimate: decisions you're holding, projects in flight, ideas you haven't closed. Typical range: 5–15.",
+  title: "Open projects or decisions waiting on you?",
+  subtitle: "Anything unfinished that still needs your call. Most people land between 5 and 15.",
   type: "slider",
   min: 0,
   max: 50,
@@ -1035,8 +1050,8 @@ const QUESTIONS = [{
 }, {
   key: "contextSwitches",
   domain: "Cognitive Load",
-  title: "How many times per day did you switch between tasks/meetings/chats?",
-  subtitle: "Rough estimate: Count major focus shifts. High switching = decreased attention.",
+  title: "How many times a day does your focus jump?",
+  subtitle: "Moving between tasks, meetings, or messages. A rough count is fine.",
   type: "slider",
   min: 2,
   max: 20,
@@ -1045,8 +1060,8 @@ const QUESTIONS = [{
 }, {
   key: "deepWorkBlocks",
   domain: "Cognitive Load",
-  title: "Uninterrupted deep work blocks this week?",
-  subtitle: "Count blocks of 90+ minutes of focused work without distractions.",
+  title: "Long stretches of focused work this week?",
+  subtitle: "Sessions of 90 minutes or more with no interruptions. Last question.",
   type: "slider",
   min: 0,
   max: 15,
@@ -1527,6 +1542,94 @@ function StreakBadge({
 
 /* ============================================================ */
 
+function PushPrompt({
+  isBest
+}) {
+  const [status, setStatus] = useState(() => {
+    try {
+      if (localStorage.getItem("neurl:push_dismissed")) return "hidden";
+      if (localStorage.getItem("neurl:push_sub")) return "on";
+      if (typeof Notification !== "undefined" && Notification.permission === "denied") return "hidden";
+    } catch (e) {}
+    return "ask";
+  });
+  if (status === "hidden") return null;
+  if (status === "on") {
+    return /*#__PURE__*/React.createElement("div", {
+      className: "card",
+      style: {
+        marginTop: 16,
+        marginBottom: 16,
+        borderColor: "rgba(56,238,102,0.35)"
+      }
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "card-p",
+      style: {
+        margin: 0,
+        color: "#38EE66",
+        fontWeight: 600
+      }
+    }, "Reminders are on"), /*#__PURE__*/React.createElement("p", {
+      className: "fine",
+      style: {
+        marginTop: 6
+      }
+    }, "We'll ping you once a week when your next reading is ready."));
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      marginTop: 16,
+      marginBottom: 16,
+      background: "rgba(56,238,102,0.06)",
+      borderColor: "rgba(56,238,102,0.35)"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow",
+    style: {
+      color: "#38EE66"
+    }
+  }, "Get next week's reading"), /*#__PURE__*/React.createElement("p", {
+    className: "card-p",
+    style: {
+      marginTop: 8,
+      marginBottom: 6
+    }
+  }, isBest ? "That's a personal best. Come back next week and defend it." : "Your score updates every week. We'll send one reminder."), /*#__PURE__*/React.createElement("p", {
+    className: "fine",
+    style: {
+      marginTop: 0,
+      marginBottom: 16
+    }
+  }, "No email or phone number needed — it comes straight to this device."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 10,
+      flexWrap: "wrap"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn-primary",
+    style: {
+      flex: "1 1 160px"
+    },
+    onClick: async () => {
+      setStatus("working");
+      const ok = await (window.neurlEnablePush ? window.neurlEnablePush() : Promise.resolve(false));
+      setStatus(ok ? "on" : "hidden");
+    }
+  }, "Turn on reminders"), /*#__PURE__*/React.createElement("button", {
+    className: "btn-secondary",
+    style: {
+      flex: "1 1 120px"
+    },
+    onClick: () => {
+      try {
+        localStorage.setItem("neurl:push_dismissed", "1");
+      } catch (e) {}
+      setStatus("hidden");
+    }
+  }, "No thanks")));
+}
 function App() {
   const [view, setView] = useState("loading");
   const [state, setState] = useState({
@@ -1749,67 +1852,7 @@ function App() {
     className: "shell"
   }, view === "loading" && /*#__PURE__*/React.createElement("div", {
     className: "loading-dot"
-  }), window.NEURL_SHOW_REMINDER && view === "welcome" && /*#__PURE__*/React.createElement("div", {
-    className: "app"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "shell"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "fade-in",
-    style: {
-      textAlign: "center"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: "rgba(56, 238, 102, 0.1)",
-      border: "1.5px solid #38EE66",
-      borderRadius: 20,
-      padding: 24,
-      marginBottom: 28
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "eyebrow",
-    style: {
-      color: "#38EE66",
-      marginBottom: 8
-    }
-  }, "Welcome Back"), /*#__PURE__*/React.createElement("h2", {
-    className: "hero-h",
-    style: {
-      color: "#F2F4F7",
-      marginTop: 0,
-      marginBottom: 12
-    }
-  }, "It's been a week."), /*#__PURE__*/React.createElement("p", {
-    className: "hero-p"
-  }, "Your NEURL Score is waiting. See what changed."), /*#__PURE__*/React.createElement("button", {
-    className: "btn-primary",
-    onClick: () => {
-      setStep(0);
-      setView("checkin");
-      window.NEURL_SHOW_REMINDER = false;
-    },
-    style: {
-      marginTop: 20
-    }
-  }, "Get This Week's Score")), /*#__PURE__*/React.createElement("p", {
-    className: "fine",
-    style: {
-      marginTop: 20
-    }
-  }, "Or ", /*#__PURE__*/React.createElement("button", {
-    className: "btn-ghost",
-    onClick: () => {
-      setView("today");
-      window.NEURL_SHOW_REMINDER = false;
-    },
-    style: {
-      background: "none",
-      border: "none",
-      color: "#8B93A1",
-      cursor: "pointer",
-      textDecoration: "underline"
-    }
-  }, "view your dashboard"))))), view === "welcome" && /*#__PURE__*/React.createElement("div", {
+  }), view === "welcome" && /*#__PURE__*/React.createElement("div", {
     className: "fade-in center-col"
   }, /*#__PURE__*/React.createElement("div", {
     className: "wordmark"
@@ -2588,7 +2631,7 @@ function App() {
         color: riskColor,
         fontWeight: 500
       }
-    }, "This week: ", outputLabel, ", ", riskLabel);
+    }, "This week: ", outputLabel, " expected · ", riskLabel === "sustainable" ? "sustainable pace" : riskLabel === "moderate" ? "pace looks steady" : riskLabel === "watch" ? "worth watching" : riskLabel === "monitor" ? "keep an eye on it" : "heading toward burnout");
   })(), /*#__PURE__*/React.createElement("div", {
     className: "card",
     style: {
@@ -2597,22 +2640,96 @@ function App() {
     }
   }, /*#__PURE__*/React.createElement("div", {
     className: "eyebrow"
-  }, "Your performance ranking"), /*#__PURE__*/React.createElement("p", {
-    className: "card-p",
-    style: {
-      fontSize: 18,
-      marginBottom: 8
-    }
-  }, /*#__PURE__*/React.createElement("strong", null, percentile(latest.charge, avg), "th percentile")), /*#__PURE__*/React.createElement("p", {
-    className: "fine"
-  }, "Higher than ", percentile(latest.charge, avg), "% of peers your age. You're in the top tier. Maintain it next week.")), best === latest.charge && state.history.length > 1 && /*#__PURE__*/React.createElement("div", {
+  }, "Where you stand"), (() => {
+    const p = percentile(latest.charge, avg);
+    const diff = latest.charge - avg;
+    const tier = p >= 90 ? "Top 10% of " + cohort : p >= 75 ? "Top 25% of " + cohort : p >= 55 ? "Above average for " + cohort : p >= 45 ? "Right around average for " + cohort : "Below average for " + cohort;
+    return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("p", {
+      className: "card-p",
+      style: {
+        fontSize: 18,
+        marginBottom: 6
+      }
+    }, /*#__PURE__*/React.createElement("strong", null, tier)), /*#__PURE__*/React.createElement("p", {
+      className: "fine",
+      style: {
+        marginBottom: 18
+      }
+    }, "Your score: ", /*#__PURE__*/React.createElement("strong", {
+      style: {
+        color: chargeColor(latest.charge)
+      }
+    }, latest.charge), " · ", cohort, " average: ", /*#__PURE__*/React.createElement("strong", null, avg), ". You're ", Math.abs(diff), " point", Math.abs(diff) === 1 ? "" : "s", " ", diff >= 0 ? "ahead of" : "behind", " your age group."), /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: "relative",
+        height: 10,
+        borderRadius: 6,
+        background: "rgba(255,255,255,0.08)",
+        margin: "4px 0 12px"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: "absolute",
+        left: "81%",
+        right: 0,
+        top: 0,
+        bottom: 0,
+        borderRadius: "0 6px 6px 0",
+        background: "rgba(56,238,102,0.18)"
+      }
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: "absolute",
+        left: avg + "%",
+        top: -4,
+        width: 2,
+        height: 18,
+        background: "#8B93A1"
+      }
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: "absolute",
+        left: Math.min(latest.charge, 99) + "%",
+        top: -3,
+        width: 16,
+        height: 16,
+        borderRadius: "50%",
+        background: chargeColor(latest.charge),
+        transform: "translateX(-50%)",
+        boxShadow: "0 0 10px " + chargeColor(latest.charge)
+      }
+    })), /*#__PURE__*/React.createElement("p", {
+      className: "fine",
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        margin: 0,
+        gap: 8
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: chargeColor(latest.charge)
+      }
+    }, "● You ", latest.charge), /*#__PURE__*/React.createElement("span", null, "| Avg ", avg), /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: "#38EE66"
+      }
+    }, "▓ Elite 81+")), /*#__PURE__*/React.createElement("p", {
+      className: "fine",
+      style: {
+        marginTop: 14
+      }
+    }, latest.charge >= 81 ? "You're in the Elite zone. This week's job: defend it." : "Next milestone: the Elite zone at 81 — you're " + (81 - latest.charge) + " points away."));
+  })()), best === latest.charge && state.history.length > 1 && /*#__PURE__*/React.createElement("div", {
     className: "pb-badge"
   }, "▲ New personal best"), prev && /*#__PURE__*/React.createElement("div", {
     className: "delta",
     style: {
       color: latest.charge >= prev.charge ? chargeColor(85) : chargeColor(20)
     }
-  }, latest.charge >= prev.charge ? "▲" : "▼", " ", Math.abs(latest.charge - prev.charge), " vs last week"), latest.subscores && /*#__PURE__*/React.createElement("div", {
+  }, latest.charge >= prev.charge ? "▲" : "▼", " ", Math.abs(latest.charge - prev.charge), " vs last week"), /*#__PURE__*/React.createElement(PushPrompt, {
+    isBest: best === latest.charge && state.history.length > 1
+  }), latest.subscores && /*#__PURE__*/React.createElement("div", {
     className: "card",
     style: {
       marginTop: 16,
@@ -2768,7 +2885,10 @@ function App() {
     size: 230
   }), /*#__PURE__*/React.createElement("div", {
     className: "dash-sub"
-  }, "Read ", fmtDate(latest.date), " · Top ", 100 - percentile(latest.charge, avg), "% of ", cohort, prev && /*#__PURE__*/React.createElement("span", {
+  }, "Read ", fmtDate(latest.date), " · ", (() => {
+    const p = percentile(latest.charge, avg);
+    return p >= 90 ? "Top 10%" : p >= 75 ? "Top 25%" : p >= 55 ? "Above avg" : p >= 45 ? "Around avg" : "Below avg";
+  })(), " of ", cohort, prev && /*#__PURE__*/React.createElement("span", {
     style: {
       color: latest.charge >= prev.charge ? chargeColor(85) : chargeColor(20),
       marginLeft: 8
