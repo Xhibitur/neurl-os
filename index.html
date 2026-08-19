@@ -2,9 +2,19 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>NEURL-OS — The Operating System for Peak Performance</title>
   <meta name="description" content="NEURL-OS is a free 2-minute weekly calibration that transforms your weekly habits into a predictive model of your performance.">
+
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0A0C0F">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="NEURL-OS">
+  <meta name="mobile-web-app-capable" content="yes">
+
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-HNBQNHRJEL"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
@@ -325,6 +335,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 })();
 </script>
   <script>
+/* ---------- NEURL-OS runtime shim ---------- */
+
 function neurlLog(event) {
   try {
     if (window.gtag) gtag('event', event);
@@ -336,6 +348,19 @@ try {
     neurlLog("visit");
   }
 } catch (e) {}
+try {
+  if (location.search.indexOf("src=homescreen") > -1) neurlLog("open_from_homescreen");
+} catch (e) {}
+
+/* capture the install prompt before the browser discards it */
+window.addEventListener("beforeinstallprompt", function (e) {
+  e.preventDefault();
+  window.neurlInstallEvent = e;
+  window.dispatchEvent(new Event("neurl:installable"));
+});
+window.addEventListener("appinstalled", function () {
+  neurlLog("app_installed");
+});
 var NEURL_PUSH = {
   VAPID_PUBLIC_KEY: "BI-fVXzsYWAHKXushkv4R5NugvsbnYm8iMK6Ia6E7w7vVQI15jbpUhko8xnLaweN6dtLH9VHSn6pf9LhXZHIgXg",
   enabled: true
@@ -373,24 +398,32 @@ window.neurlEnablePush = async function () {
     return false;
   }
 };
+
+/* register the service worker so the app is installable */
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("/sw.js").catch(function () {});
+  });
+}
 function neurlCheckReminder() {
   try {
-    var rawState = localStorage.getItem("charge:v1");
-    if (!rawState) return;
-    var state = JSON.parse(rawState);
-    var hist = state.history || [];
-    if (hist.length === 0) return;
-    var last = hist[hist.length - 1];
-    var daysSince = (Date.now() - new Date(last.date).getTime()) / 86400000;
-    if (daysSince >= 7) {
+    var raw = localStorage.getItem("charge:v1");
+    if (!raw) return;
+    var st = JSON.parse(raw);
+    var hist = st.history || [];
+    if (!hist.length) return;
+    var days = (Date.now() - new Date(hist[hist.length - 1].date).getTime()) / 86400000;
+    if (days >= 7) {
       neurlLog("reminder_due");
-      localStorage.setItem("neurl:reminder_shown", Date.now());
       window.NEURL_SHOW_REMINDER = true;
     }
   } catch (e) {}
 }
 neurlCheckReminder();
-if (!window.storage) {
+
+/* Always own storage. A host/preview page may define an incompatible
+   window.storage, which would make saves fail with "Unexpected response type". */
+{
   window.storage = {
     async get(key) {
       var v = localStorage.getItem(key);
@@ -1542,6 +1575,54 @@ function StreakBadge({
 
 /* ============================================================ */
 
+/* ---------- retention components ---------- */
+
+function nextSunday1800() {
+  const d = new Date();
+  const days = (7 - d.getDay()) % 7 || 7;
+  d.setDate(d.getDate() + days);
+  d.setHours(18, 0, 0, 0);
+  return d;
+}
+function icsStamp(d) {
+  const p = n => String(n).padStart(2, "0");
+  return d.getUTCFullYear() + p(d.getUTCMonth() + 1) + p(d.getUTCDate()) + "T" + p(d.getUTCHours()) + p(d.getUTCMinutes()) + "00Z";
+}
+function PredictionCard({
+  charge,
+  forecast
+}) {
+  const when = nextSunday1800();
+  const label = when.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric"
+  });
+  const dir = forecast.projected > charge ? "climb to" : forecast.projected < charge ? "slip to" : "hold at";
+  return /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      marginTop: 16,
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow"
+  }, "Our prediction for you"), /*#__PURE__*/React.createElement("p", {
+    className: "card-p",
+    style: {
+      marginTop: 8,
+      marginBottom: 6
+    }
+  }, "Based on your trajectory, we expect your score to ", dir, " ", /*#__PURE__*/React.createElement("strong", {
+    style: {
+      color: chargeColor(forecast.projected)
+    }
+  }, forecast.projected), " by ", label, "."), /*#__PURE__*/React.createElement("p", {
+    className: "fine",
+    style: {
+      marginTop: 0
+    }
+  }, "Come back next week and find out whether we were right."));
+}
 function PushPrompt({
   isBest
 }) {
@@ -1612,12 +1693,13 @@ function PushPrompt({
     style: {
       flex: "1 1 160px"
     },
+    disabled: status === "working",
     onClick: async () => {
       setStatus("working");
       const ok = await (window.neurlEnablePush ? window.neurlEnablePush() : Promise.resolve(false));
       setStatus(ok ? "on" : "hidden");
     }
-  }, "Turn on reminders"), /*#__PURE__*/React.createElement("button", {
+  }, status === "working" ? "Setting up…" : "Turn on reminders"), /*#__PURE__*/React.createElement("button", {
     className: "btn-secondary",
     style: {
       flex: "1 1 120px"
@@ -1629,6 +1711,316 @@ function PushPrompt({
       setStatus("hidden");
     }
   }, "No thanks")));
+}
+function CalendarHold({
+  charge,
+  projected
+}) {
+  const [done, setDone] = useState(() => {
+    try {
+      return !!localStorage.getItem("neurl:calendar_added");
+    } catch (e) {
+      return false;
+    }
+  });
+  const start = nextSunday1800();
+  const end = new Date(start.getTime() + 15 * 60000);
+  const title = "NEURL-OS weekly calibration";
+  const body = "Two minutes. Get this week's NEURL Score.\n\n" + "Last reading: " + charge + (projected ? "  |  Projected: " + projected : "") + "\n\n" + "Your score is only as current as your last calibration.\n" + "Take this week's reading: https://neurl-os.com\n\n" + "NEURL-OS — Performance, measured.";
+  function markDone() {
+    try {
+      localStorage.setItem("neurl:calendar_added", "1");
+    } catch (e) {}
+    setDone(true);
+  }
+  function addToCalendar() {
+    const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//NEURL-OS//Weekly Calibration//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", "BEGIN:VEVENT", "UID:" + Date.now() + "@neurl-os.com", "DTSTAMP:" + icsStamp(new Date()), "DTSTART:" + icsStamp(start), "DTEND:" + icsStamp(end), "RRULE:FREQ=WEEKLY;BYDAY=SU", "SUMMARY:" + title, "DESCRIPTION:" + body.replace(/\n/g, "\\n"), "URL:https://neurl-os.com", "LOCATION:https://neurl-os.com", "BEGIN:VALARM", "TRIGGER:-PT30M", "ACTION:DISPLAY", "DESCRIPTION:NEURL-OS — your weekly reading is ready", "END:VALARM", "END:VEVENT", "END:VCALENDAR"].join("\r\n");
+    const blob = new Blob([ics], {
+      type: "text/calendar;charset=utf-8"
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "neurl-os-weekly.ics";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    try {
+      if (window.gtag) gtag("event", "calendar_hold_added");
+    } catch (e) {}
+    markDone();
+  }
+  function googleUrl() {
+    const fmt = d => icsStamp(d);
+    return "https://calendar.google.com/calendar/render?action=TEMPLATE" + "&text=" + encodeURIComponent(title) + "&dates=" + fmt(start) + "/" + fmt(end) + "&recur=" + encodeURIComponent("RRULE:FREQ=WEEKLY;BYDAY=SU") + "&details=" + encodeURIComponent(body) + "&location=" + encodeURIComponent("https://neurl-os.com");
+  }
+  if (done) {
+    return /*#__PURE__*/React.createElement("div", {
+      className: "card",
+      style: {
+        marginTop: 16,
+        marginBottom: 16
+      }
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "card-p",
+      style: {
+        margin: 0,
+        fontWeight: 600
+      }
+    }, "Your weekly slot is held"), /*#__PURE__*/React.createElement("p", {
+      className: "fine",
+      style: {
+        marginTop: 6
+      }
+    }, "Sundays at 6pm. The invite links straight back to neurl-os.com."));
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      marginTop: 16,
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow"
+  }, "Hold your weekly slot"), /*#__PURE__*/React.createElement("p", {
+    className: "card-p",
+    style: {
+      marginTop: 8,
+      marginBottom: 6
+    }
+  }, "Put a recurring 15-minute hold on your calendar so the reading actually happens."), /*#__PURE__*/React.createElement("p", {
+    className: "fine",
+    style: {
+      marginTop: 0,
+      marginBottom: 16
+    }
+  }, "Sundays at 6pm, repeating weekly, with a 30-minute heads-up. The invite links back to NEURL-OS."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 10,
+      flexWrap: "wrap"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn-primary",
+    style: {
+      flex: "1 1 150px"
+    },
+    onClick: addToCalendar
+  }, "Add to calendar"), /*#__PURE__*/React.createElement("a", {
+    className: "btn-secondary",
+    style: {
+      flex: "1 1 150px",
+      textAlign: "center",
+      textDecoration: "none",
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center"
+    },
+    href: googleUrl(),
+    target: "_blank",
+    rel: "noopener noreferrer",
+    onClick: () => {
+      try {
+        if (window.gtag) gtag("event", "calendar_hold_google");
+      } catch (e) {}
+      markDone();
+    }
+  }, "Google Calendar")));
+}
+
+/* Identify the browser well enough to give correct install steps.
+   Every major browser puts "add to home screen" somewhere different. */
+function detectInstallTarget() {
+  const ua = navigator.userAgent;
+  const iOS = /iphone|ipad|ipod/i.test(ua) || navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1; // iPadOS reports as Mac
+  const android = /android/i.test(ua);
+  if (iOS) {
+    if (/CriOS/i.test(ua)) return {
+      key: "ios-chrome",
+      label: "Chrome",
+      share: "the Share button in the address bar"
+    };
+    if (/EdgiOS/i.test(ua)) return {
+      key: "ios-edge",
+      label: "Edge",
+      share: "the Share button in the menu bar"
+    };
+    if (/FxiOS/i.test(ua)) return {
+      key: "ios-firefox",
+      label: "Firefox",
+      share: "the Share button in the menu"
+    };
+    return {
+      key: "ios-safari",
+      label: "Safari",
+      share: "the Share button at the bottom of the screen"
+    };
+  }
+  if (android) {
+    if (/SamsungBrowser/i.test(ua)) return {
+      key: "android-samsung",
+      label: "Samsung Internet"
+    };
+    if (/Firefox/i.test(ua)) return {
+      key: "android-firefox",
+      label: "Firefox"
+    };
+    return {
+      key: "android-chrome",
+      label: "Chrome"
+    };
+  }
+  if (/Edg\//i.test(ua)) return {
+    key: "desktop-edge",
+    label: "Edge"
+  };
+  if (/Firefox/i.test(ua)) return {
+    key: "desktop-firefox",
+    label: "Firefox"
+  };
+  if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) return {
+    key: "desktop-safari",
+    label: "Safari"
+  };
+  return {
+    key: "desktop-chrome",
+    label: "Chrome"
+  };
+}
+function installInstructions(t) {
+  switch (t.key) {
+    case "ios-safari":
+    case "ios-chrome":
+    case "ios-edge":
+      return /*#__PURE__*/React.createElement(React.Fragment, null, "In ", t.label, ", tap ", t.share, ", scroll down, then choose ", /*#__PURE__*/React.createElement("strong", null, "Add to Home Screen"), ".");
+    case "ios-firefox":
+      return /*#__PURE__*/React.createElement(React.Fragment, null, "Firefox on iPhone can't add to the home screen. Open ", /*#__PURE__*/React.createElement("strong", null, "neurl-os.com"), " in Safari, tap Share, then ", /*#__PURE__*/React.createElement("strong", null, "Add to Home Screen"), ".");
+    case "android-samsung":
+      return /*#__PURE__*/React.createElement(React.Fragment, null, "Tap the menu (☰), choose ", /*#__PURE__*/React.createElement("strong", null, "Add page to"), ", then ", /*#__PURE__*/React.createElement("strong", null, "Home screen"), ".");
+    case "android-firefox":
+      return /*#__PURE__*/React.createElement(React.Fragment, null, "Tap the menu (⋮), then choose ", /*#__PURE__*/React.createElement("strong", null, "Install"), " or ", /*#__PURE__*/React.createElement("strong", null, "Add to Home screen"), ".");
+    case "android-chrome":
+      return /*#__PURE__*/React.createElement(React.Fragment, null, "Tap the menu (⋮), then choose ", /*#__PURE__*/React.createElement("strong", null, "Add to Home screen"), ".");
+    case "desktop-safari":
+      return /*#__PURE__*/React.createElement(React.Fragment, null, "In Safari, choose ", /*#__PURE__*/React.createElement("strong", null, "File → Add to Dock"), " to keep NEURL-OS one click away.");
+    case "desktop-firefox":
+      return /*#__PURE__*/React.createElement(React.Fragment, null, "Firefox on desktop doesn't install web apps. Bookmark ", /*#__PURE__*/React.createElement("strong", null, "neurl-os.com"), ", or open it in Chrome or Edge to install.");
+    default:
+      return /*#__PURE__*/React.createElement(React.Fragment, null, "Click the install icon (⊕) at the right of the address bar, then ", /*#__PURE__*/React.createElement("strong", null, "Install"), ".");
+  }
+}
+function InstallPrompt() {
+  const [status, setStatus] = useState("hidden");
+  const [target, setTarget] = useState(null);
+  const [iconOk, setIconOk] = useState(true);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("neurl:install_dismissed")) return;
+      const standalone = window.matchMedia && window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+      if (standalone) return; // already installed
+
+      setTarget(detectInstallTarget());
+      if (window.neurlInstallEvent) {
+        setStatus("native");
+        return;
+      }
+      setStatus("manual");
+      const onReady = () => setStatus("native");
+      window.addEventListener("neurl:installable", onReady);
+      return () => window.removeEventListener("neurl:installable", onReady);
+    } catch (e) {}
+  }, []);
+  if (status === "hidden" || !target) return null;
+  const dismiss = () => {
+    try {
+      localStorage.setItem("neurl:install_dismissed", "1");
+    } catch (e) {}
+    setStatus("hidden");
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      marginTop: 16,
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 14,
+      marginBottom: 12
+    }
+  }, iconOk && /*#__PURE__*/React.createElement("img", {
+    src: "/icon-192.png",
+    alt: "NEURL-OS",
+    width: "54",
+    height: "54",
+    onError: () => setIconOk(false),
+    style: {
+      borderRadius: 13,
+      flexShrink: 0,
+      border: "1px solid rgba(255,255,255,0.10)"
+    }
+  }), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow",
+    style: {
+      marginBottom: 4
+    }
+  }, "Keep NEURL-OS close"), /*#__PURE__*/React.createElement("p", {
+    className: "card-p",
+    style: {
+      margin: 0,
+      fontSize: 16,
+      fontWeight: 600
+    }
+  }, "Add it to your home screen."))), status === "native" ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("p", {
+    className: "fine",
+    style: {
+      marginTop: 0,
+      marginBottom: 14
+    }
+  }, "One tap opens straight to your score — no browser, no typing the URL."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 10,
+      flexWrap: "wrap"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn-primary",
+    style: {
+      flex: "1 1 150px"
+    },
+    onClick: async () => {
+      const ev = window.neurlInstallEvent;
+      if (!ev) {
+        setStatus("manual");
+        return;
+      }
+      ev.prompt();
+      try {
+        const res = await ev.userChoice;
+        if (window.gtag) gtag("event", res.outcome === "accepted" ? "install_accepted" : "install_declined");
+      } catch (e) {}
+      window.neurlInstallEvent = null;
+      setStatus("hidden");
+    }
+  }, "Add to home screen"), /*#__PURE__*/React.createElement("button", {
+    className: "btn-secondary",
+    style: {
+      flex: "1 1 120px"
+    },
+    onClick: dismiss
+  }, "Not now"))) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("p", {
+    className: "fine",
+    style: {
+      marginTop: 0,
+      marginBottom: 14
+    }
+  }, installInstructions(target)), /*#__PURE__*/React.createElement("button", {
+    className: "btn-secondary",
+    onClick: dismiss
+  }, "Got it")));
 }
 function App() {
   const [view, setView] = useState("loading");
@@ -2727,9 +3119,15 @@ function App() {
     style: {
       color: latest.charge >= prev.charge ? chargeColor(85) : chargeColor(20)
     }
-  }, latest.charge >= prev.charge ? "▲" : "▼", " ", Math.abs(latest.charge - prev.charge), " vs last week"), /*#__PURE__*/React.createElement(PushPrompt, {
+  }, latest.charge >= prev.charge ? "▲" : "▼", " ", Math.abs(latest.charge - prev.charge), " vs last week"), forecast && /*#__PURE__*/React.createElement(PredictionCard, {
+    charge: latest.charge,
+    forecast: forecast
+  }), /*#__PURE__*/React.createElement(PushPrompt, {
     isBest: best === latest.charge && state.history.length > 1
-  }), latest.subscores && /*#__PURE__*/React.createElement("div", {
+  }), /*#__PURE__*/React.createElement(CalendarHold, {
+    charge: latest.charge,
+    projected: forecast ? forecast.projected : null
+  }), /*#__PURE__*/React.createElement(InstallPrompt, null), latest.subscores && /*#__PURE__*/React.createElement("div", {
     className: "card",
     style: {
       marginTop: 16,
