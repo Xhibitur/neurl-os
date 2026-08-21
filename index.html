@@ -1931,6 +1931,122 @@ function ReminderPrefs({
     onClick: apply
   }, busy ? "Setting up…" : choice === "off" ? "Save preference" : "Turn on reminders"));
 }
+function CalendarHold({
+  charge,
+  projected
+}) {
+  const [done, setDone] = useState(() => {
+    try {
+      return !!localStorage.getItem("neurl:calendar_added");
+    } catch (e) {
+      return false;
+    }
+  });
+  const start = nextSunday1800();
+  const end = new Date(start.getTime() + 15 * 60000);
+  const title = "NEURL-OS weekly calibration";
+  const body = "Two minutes. Get this week's NEURL Score.\n\n" + "Last reading: " + charge + (projected ? "  |  Projected: " + projected : "") + "\n\n" + "Your score is only as current as your last calibration.\n" + "Take this week's reading: https://neurl-os.com\n\n" + "NEURL-OS — Performance, measured.";
+  function markDone() {
+    try {
+      localStorage.setItem("neurl:calendar_added", "1");
+    } catch (e) {}
+    setDone(true);
+  }
+  function addToCalendar() {
+    const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//NEURL-OS//Weekly Calibration//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", "BEGIN:VEVENT", "UID:" + Date.now() + "@neurl-os.com", "DTSTAMP:" + icsStamp(new Date()), "DTSTART:" + icsStamp(start), "DTEND:" + icsStamp(end), "RRULE:FREQ=WEEKLY;BYDAY=SU", "SUMMARY:" + title, "DESCRIPTION:" + body.replace(/\n/g, "\\n"), "URL:https://neurl-os.com", "LOCATION:https://neurl-os.com", "BEGIN:VALARM", "TRIGGER:-PT30M", "ACTION:DISPLAY", "DESCRIPTION:NEURL-OS — your weekly reading is ready", "END:VALARM", "END:VEVENT", "END:VCALENDAR"].join("\r\n");
+    const blob = new Blob([ics], {
+      type: "text/calendar;charset=utf-8"
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "neurl-os-weekly.ics";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    try {
+      if (window.gtag) gtag("event", "calendar_hold_added");
+    } catch (e) {}
+    markDone();
+  }
+  function googleUrl() {
+    const fmt = d => icsStamp(d);
+    return "https://calendar.google.com/calendar/render?action=TEMPLATE" + "&text=" + encodeURIComponent(title) + "&dates=" + fmt(start) + "/" + fmt(end) + "&recur=" + encodeURIComponent("RRULE:FREQ=WEEKLY;BYDAY=SU") + "&details=" + encodeURIComponent(body) + "&location=" + encodeURIComponent("https://neurl-os.com");
+  }
+  if (done) {
+    return /*#__PURE__*/React.createElement("div", {
+      className: "card",
+      style: {
+        marginTop: 16,
+        marginBottom: 16
+      }
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "card-p",
+      style: {
+        margin: 0,
+        fontWeight: 600
+      }
+    }, "Your weekly slot is held"), /*#__PURE__*/React.createElement("p", {
+      className: "fine",
+      style: {
+        marginTop: 6
+      }
+    }, "Sundays at 6pm. The invite links straight back to neurl-os.com."));
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      marginTop: 16,
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow"
+  }, "Hold your weekly slot"), /*#__PURE__*/React.createElement("p", {
+    className: "card-p",
+    style: {
+      marginTop: 8,
+      marginBottom: 6
+    }
+  }, "Put a recurring 15-minute hold on your calendar so the reading actually happens."), /*#__PURE__*/React.createElement("p", {
+    className: "fine",
+    style: {
+      marginTop: 0,
+      marginBottom: 16
+    }
+  }, "Sundays at 6pm, repeating weekly, with a 30-minute heads-up. The invite links back to NEURL-OS."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 10,
+      flexWrap: "wrap"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn-primary",
+    style: {
+      flex: "1 1 150px"
+    },
+    onClick: addToCalendar
+  }, "Add to calendar"), /*#__PURE__*/React.createElement("a", {
+    className: "btn-secondary",
+    style: {
+      flex: "1 1 150px",
+      textAlign: "center",
+      textDecoration: "none",
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center"
+    },
+    href: googleUrl(),
+    target: "_blank",
+    rel: "noopener noreferrer",
+    onClick: () => {
+      try {
+        if (window.gtag) gtag("event", "calendar_hold_google");
+      } catch (e) {}
+      markDone();
+    }
+  }, "Google Calendar")));
+}
 
 /* ---------- install prompt ---------- */
 
