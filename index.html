@@ -373,9 +373,15 @@ function neurlUrlB64ToUint8(base64String) {
   for (var i = 0; i < raw.length; ++i) out[i] = raw.charCodeAt(i);
   return out;
 }
-window.neurlEnablePush = async function () {
+window.NEURL_API = "/.netlify/functions/subscribe";
+
+/* Subscribe to push AND register the subscription with the server, which is
+   what actually makes reminders arrive. Without the server call, the browser
+   subscription exists but nothing can ever send to it. */
+window.neurlEnableReminders = async function (mode) {
   try {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false;
+    if (typeof Notification === "undefined") return false;
     if (!NEURL_PUSH.enabled || !NEURL_PUSH.VAPID_PUBLIC_KEY) return false;
     var perm = await Notification.requestPermission();
     if (perm !== "granted") {
@@ -392,11 +398,53 @@ window.neurlEnablePush = async function () {
       });
     }
     localStorage.setItem("neurl:push_sub", JSON.stringify(sub));
-    neurlLog("push_enabled");
+    var tz = "UTC";
+    try {
+      tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    } catch (e) {}
+    var res = await fetch(window.NEURL_API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        action: "subscribe",
+        subscription: sub,
+        mode: mode,
+        // "weekly" | "daily"
+        hour: 18,
+        // local hour to notify
+        timezone: tz,
+        lastDaily: null
+      })
+    });
+    if (!res.ok) {
+      neurlLog("push_server_error");
+      return false;
+    }
+    neurlLog("reminder_mode_" + mode);
     return true;
   } catch (e) {
     return false;
   }
+};
+
+/* Tell the server a daily check-in happened so it can skip tonight's nudge. */
+window.neurlReportDaily = async function () {
+  try {
+    var raw = localStorage.getItem("neurl:push_sub");
+    if (!raw) return;
+    await fetch(window.NEURL_API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        action: "logged",
+        subscription: JSON.parse(raw)
+      })
+    });
+  } catch (e) {}
 };
 
 /* register the service worker so the app is installable */
@@ -653,10 +701,10 @@ function computeSubscores(a) {
   const hydrationRisk = HYDRATION.find(o => o.id === a.hydrationQuality)?.risk ?? 60;
   const nutritionScore = Math.round(clamp(100 - hydrationRisk / 2 - processedDaysPenalty + balancedDaysBonus, 0, 100));
   return {
-    Recharge: Math.round(sleepScore),
-    Load: Math.round(workloadScore),
-    Restoration: Math.round(movementScore),
-    "Stress Load": Math.round(emotionalScore),
+    Sleep: Math.round(sleepScore),
+    Workload: Math.round(workloadScore),
+    Movement: Math.round(movementScore),
+    Stress: Math.round(emotionalScore),
     Attention: Math.round(focusScore),
     Fuel: Math.round(nutritionScore)
   };
@@ -664,7 +712,7 @@ function computeSubscores(a) {
 
 // Compute final Charge with new weights
 function computeCharge(subscores, prevCharge) {
-  const charge = 0.30 * subscores.Recharge + 0.25 * subscores.Load + 0.20 * subscores.Restoration + 0.15 * subscores["Stress Load"] + 0.10 * subscores.Attention + 0.05 * subscores.Fuel;
+  const charge = 0.30 * subscores.Sleep + 0.25 * subscores.Workload + 0.20 * subscores.Movement + 0.15 * subscores.Stress + 0.10 * subscores.Attention + 0.05 * subscores.Fuel;
   let final = Math.round(charge);
   // Momentum: falling trajectory is riskier
   if (prevCharge != null) final += (final - prevCharge) * 0.15;
@@ -872,19 +920,19 @@ function getRiskIndicator(charge, forecast) {
 /* ---------- performance adjustments (by weakest input) ---------- */
 
 const ADJUSTMENTS = {
-  Recharge: {
+  Sleep: {
     title: "Set a performance-grade sleep window",
     tip: "Lock a fixed wake time for 7 days — consistency raises baseline NEURL Score faster than extra hours. Usually adds +5–10% over 3 weeks."
   },
-  Load: {
+  Workload: {
     title: "Delete one recurring obligation that doesn't move your top goals",
     tip: "Load is compressing your capacity. Identify one recurring commitment to delegate, defer, or delete before Monday. Usually adds +5–10% over 3 weeks."
   },
-  Restoration: {
+  Movement: {
     title: "Lock three non-negotiable physical recovery blocks",
     tip: "Movement and restoration are limiting. Commit to 3+ sessions of intentional exercise or restorative activity this week; treat them like investor meetings. Usually adds +5–10% over 3 weeks."
   },
-  "Stress Load": {
+  Stress: {
     title: "Install a hard stop",
     tip: "Stress load is high. Set one non-negotiable end to your workday this week and defend it like a client meeting. Usually adds +5–10% over 3 weeks."
   },
@@ -1135,19 +1183,72 @@ async function loadState() {
     const r = await window.storage.get(STORAGE_KEY);
     const s = r ? JSON.parse(r.value) : {};
     return {
-      history: s.history || [],
+      history: migrateHistory(s.history || []),
       user: s.user || null,
       profile: s.profile || {},
-      activeCommitment: s.activeCommitment || null
+      activeCommitment: s.activeCommitment || null,
+      daily: s.daily || []
     };
   } catch {
     return {
       history: [],
       user: null,
       profile: {},
-      activeCommitment: null
+      activeCommitment: null,
+      daily: []
     };
   }
+}
+// Older readings stored subscores under the previous dimension names.
+// Map them forward so existing history keeps rendering after the rename.
+const LEGACY_DIMENSIONS = {
+  Recharge: "Sleep",
+  Load: "Workload",
+  Restoration: "Movement",
+  "Stress Load": "Stress"
+};
+function migrateHistory(history) {
+  return history.map(entry => {
+    if (!entry || !entry.subscores) return entry;
+    const keys = Object.keys(entry.subscores);
+    if (!keys.some(k => LEGACY_DIMENSIONS[k])) return entry;
+    const next = {};
+    keys.forEach(k => {
+      next[LEGACY_DIMENSIONS[k] || k] = entry.subscores[k];
+    });
+    return {
+      ...entry,
+      subscores: next
+    };
+  });
+}
+
+// ---- daily check-in helpers ----
+const DAY_MS = 86400000;
+function dayKey(d) {
+  const x = new Date(d);
+  return x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0");
+}
+function recentDaily(daily, days) {
+  const cutoff = Date.now() - days * DAY_MS;
+  return (daily || []).filter(d => new Date(d.date).getTime() >= cutoff);
+}
+function loggedToday(daily) {
+  const today = dayKey(new Date());
+  return (daily || []).some(d => dayKey(d.date) === today);
+}
+// Derive weekly answers from daily logs. Only fields that can be honestly
+// inferred from the three sliders are pre-filled.
+function prefillFromDaily(daily) {
+  const week = recentDaily(daily, 7);
+  if (week.length < 2) return null;
+  const avg = k => week.reduce((s, d) => s + d[k], 0) / week.length;
+  return {
+    count: week.length,
+    sleepQuality: Math.round(avg("sleep")),
+    highDemandDaysCount: week.filter(d => d.workload >= 4).length,
+    exerciseDays: week.filter(d => d.movement >= 3).length
+  };
 }
 async function saveState(state) {
   try {
@@ -1410,7 +1511,7 @@ function buildForecast(history, subscores) {
   if (!subscores || Object.keys(subscores).length === 0) {
     return {
       projected: 50,
-      dragName: "Recharge",
+      dragName: "Sleep",
       dragVal: 50,
       narrative: "Check back next week for your forecast.",
       rising: false
@@ -1429,10 +1530,10 @@ function buildForecast(history, subscores) {
   const rising = projected > last.charge;
   const flat = projected === last.charge;
   const dragPhrase = {
-    Recharge: "recharge capacity is depleting",
-    Load: "structural load is unsustainable",
-    Restoration: "recovery is insufficient",
-    "Stress Load": "stress load remains elevated",
+    Sleep: "sleep is running down your capacity",
+    Workload: "workload is running above sustainable levels",
+    Movement: "physical recovery is insufficient",
+    Stress: "stress remains elevated",
     Attention: "attention is compromised",
     Fuel: "fuel intake is inconsistent"
   };
@@ -1623,40 +1724,111 @@ function PredictionCard({
     }
   }, "Come back next week and find out whether we were right."));
 }
-function PushPrompt({
-  isBest
+
+/* ---------- reminder preferences ---------- */
+
+const REMINDER_OPTIONS = [{
+  id: "weekly",
+  label: "Weekly only",
+  detail: "One reminder on Sunday evening when your reading is ready.",
+  tag: "Recommended"
+}, {
+  id: "daily",
+  label: "Daily + weekly",
+  detail: "A nudge each evening to log your 15-second check-in, plus Sunday's reading.",
+  tag: null
+}, {
+  id: "off",
+  label: "No reminders",
+  detail: "Nothing sent. You can turn these on later.",
+  tag: null
+}];
+function ReminderPrefs({
+  isBest,
+  daily
 }) {
-  const [status, setStatus] = useState(() => {
+  const [saved, setSaved] = useState(() => {
     try {
-      if (localStorage.getItem("neurl:push_dismissed")) return "hidden";
-      if (localStorage.getItem("neurl:push_sub")) return "on";
-      if (typeof Notification !== "undefined" && Notification.permission === "denied") return "hidden";
-    } catch (e) {}
-    return "ask";
+      return localStorage.getItem("neurl:reminder_mode");
+    } catch (e) {
+      return null;
+    }
   });
-  if (status === "hidden") return null;
-  if (status === "on") {
+  const [choice, setChoice] = useState("weekly");
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  // hidden if they've already chosen, or the browser blocked notifications
+  const blocked = (() => {
+    try {
+      return typeof Notification !== "undefined" && Notification.permission === "denied";
+    } catch (e) {
+      return false;
+    }
+  })();
+  if (blocked && !saved) return null;
+  if (saved) {
+    const opt = REMINDER_OPTIONS.find(o => o.id === saved);
     return /*#__PURE__*/React.createElement("div", {
       className: "card",
       style: {
         marginTop: 16,
         marginBottom: 16,
-        borderColor: "rgba(56,238,102,0.35)"
+        borderColor: saved === "off" ? undefined : "rgba(56,238,102,0.35)"
       }
-    }, /*#__PURE__*/React.createElement("p", {
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "eyebrow",
+      style: {
+        color: saved === "off" ? undefined : "#38EE66"
+      }
+    }, "Reminders"), /*#__PURE__*/React.createElement("p", {
       className: "card-p",
       style: {
-        margin: 0,
-        color: "#38EE66",
+        marginTop: 8,
+        marginBottom: 6,
         fontWeight: 600
       }
-    }, "Reminders are on"), /*#__PURE__*/React.createElement("p", {
+    }, opt ? opt.label : "Set"), /*#__PURE__*/React.createElement("p", {
       className: "fine",
       style: {
-        marginTop: 6
+        marginTop: 0,
+        marginBottom: 14
       }
-    }, "We'll ping you once a week when your next reading is ready."));
+    }, opt ? opt.detail : ""), /*#__PURE__*/React.createElement("button", {
+      className: "btn-secondary",
+      onClick: () => {
+        try {
+          localStorage.removeItem("neurl:reminder_mode");
+        } catch (e) {}
+        setSaved(null);
+      }
+    }, "Change"));
   }
+  const apply = async () => {
+    setBusy(true);
+    setFailed(false);
+    if (choice === "off") {
+      try {
+        localStorage.setItem("neurl:reminder_mode", "off");
+      } catch (e) {}
+      try {
+        if (window.gtag) gtag("event", "reminder_mode_off");
+      } catch (e) {}
+      setSaved("off");
+      setBusy(false);
+      return;
+    }
+    const ok = await (window.neurlEnableReminders ? window.neurlEnableReminders(choice) : Promise.resolve(false));
+    if (ok) {
+      try {
+        localStorage.setItem("neurl:reminder_mode", choice);
+      } catch (e) {}
+      setSaved(choice);
+    } else {
+      setFailed(true);
+    }
+    setBusy(false);
+  };
   return /*#__PURE__*/React.createElement("div", {
     className: "card",
     style: {
@@ -1670,250 +1842,238 @@ function PushPrompt({
     style: {
       color: "#38EE66"
     }
-  }, "Get next week's reading"), /*#__PURE__*/React.createElement("p", {
+  }, "Stay on track"), /*#__PURE__*/React.createElement("p", {
     className: "card-p",
     style: {
       marginTop: 8,
       marginBottom: 6
     }
-  }, isBest ? "That's a personal best. Come back next week and defend it." : "Your score updates every week. We'll send one reminder."), /*#__PURE__*/React.createElement("p", {
+  }, isBest ? "That's a personal best. Come back and defend it." : "How often should we remind you?"), /*#__PURE__*/React.createElement("p", {
     className: "fine",
     style: {
       marginTop: 0,
       marginBottom: 16
     }
-  }, "No email or phone number needed — it comes straight to this device."), /*#__PURE__*/React.createElement("div", {
+  }, "No email or phone number needed — reminders come straight to this device."), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
+      flexDirection: "column",
       gap: 10,
-      flexWrap: "wrap"
+      marginBottom: 16
     }
-  }, /*#__PURE__*/React.createElement("button", {
-    className: "btn-primary",
-    style: {
-      flex: "1 1 160px"
-    },
-    disabled: status === "working",
-    onClick: async () => {
-      setStatus("working");
-      const ok = await (window.neurlEnablePush ? window.neurlEnablePush() : Promise.resolve(false));
-      setStatus(ok ? "on" : "hidden");
-    }
-  }, status === "working" ? "Setting up…" : "Turn on reminders"), /*#__PURE__*/React.createElement("button", {
-    className: "btn-secondary",
-    style: {
-      flex: "1 1 120px"
-    },
-    onClick: () => {
-      try {
-        localStorage.setItem("neurl:push_dismissed", "1");
-      } catch (e) {}
-      setStatus("hidden");
-    }
-  }, "No thanks")));
-}
-function CalendarHold({
-  charge,
-  projected
-}) {
-  const [done, setDone] = useState(() => {
-    try {
-      return !!localStorage.getItem("neurl:calendar_added");
-    } catch (e) {
-      return false;
-    }
-  });
-  const start = nextSunday1800();
-  const end = new Date(start.getTime() + 15 * 60000);
-  const title = "NEURL-OS weekly calibration";
-  const body = "Two minutes. Get this week's NEURL Score.\n\n" + "Last reading: " + charge + (projected ? "  |  Projected: " + projected : "") + "\n\n" + "Your score is only as current as your last calibration.\n" + "Take this week's reading: https://neurl-os.com\n\n" + "NEURL-OS — Performance, measured.";
-  function markDone() {
-    try {
-      localStorage.setItem("neurl:calendar_added", "1");
-    } catch (e) {}
-    setDone(true);
-  }
-  function addToCalendar() {
-    const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//NEURL-OS//Weekly Calibration//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", "BEGIN:VEVENT", "UID:" + Date.now() + "@neurl-os.com", "DTSTAMP:" + icsStamp(new Date()), "DTSTART:" + icsStamp(start), "DTEND:" + icsStamp(end), "RRULE:FREQ=WEEKLY;BYDAY=SU", "SUMMARY:" + title, "DESCRIPTION:" + body.replace(/\n/g, "\\n"), "URL:https://neurl-os.com", "LOCATION:https://neurl-os.com", "BEGIN:VALARM", "TRIGGER:-PT30M", "ACTION:DISPLAY", "DESCRIPTION:NEURL-OS — your weekly reading is ready", "END:VALARM", "END:VEVENT", "END:VCALENDAR"].join("\r\n");
-    const blob = new Blob([ics], {
-      type: "text/calendar;charset=utf-8"
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "neurl-os-weekly.ics";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1500);
-    try {
-      if (window.gtag) gtag("event", "calendar_hold_added");
-    } catch (e) {}
-    markDone();
-  }
-  function googleUrl() {
-    const fmt = d => icsStamp(d);
-    return "https://calendar.google.com/calendar/render?action=TEMPLATE" + "&text=" + encodeURIComponent(title) + "&dates=" + fmt(start) + "/" + fmt(end) + "&recur=" + encodeURIComponent("RRULE:FREQ=WEEKLY;BYDAY=SU") + "&details=" + encodeURIComponent(body) + "&location=" + encodeURIComponent("https://neurl-os.com");
-  }
-  if (done) {
-    return /*#__PURE__*/React.createElement("div", {
-      className: "card",
+  }, REMINDER_OPTIONS.map(o => {
+    const active = choice === o.id;
+    return /*#__PURE__*/React.createElement("button", {
+      key: o.id,
+      onClick: () => setChoice(o.id),
       style: {
-        marginTop: 16,
-        marginBottom: 16
+        textAlign: "left",
+        background: active ? "rgba(56,238,102,0.12)" : "rgba(255,255,255,0.03)",
+        border: "1.5px solid " + (active ? "#38EE66" : "rgba(255,255,255,0.10)"),
+        borderRadius: 14,
+        padding: "14px 16px",
+        cursor: "pointer",
+        color: "inherit",
+        font: "inherit"
       }
-    }, /*#__PURE__*/React.createElement("p", {
-      className: "card-p",
+    }, /*#__PURE__*/React.createElement("div", {
       style: {
-        margin: 0,
-        fontWeight: 600
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        marginBottom: 4
       }
-    }, "Your weekly slot is held"), /*#__PURE__*/React.createElement("p", {
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 16,
+        height: 16,
+        borderRadius: "50%",
+        flexShrink: 0,
+        border: "2px solid " + (active ? "#38EE66" : "#8B93A1"),
+        background: active ? "#38EE66" : "transparent"
+      }
+    }), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontWeight: 600,
+        color: "#F2F4F7",
+        fontSize: 15
+      }
+    }, o.label), o.tag && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 10,
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        color: "#38EE66",
+        border: "1px solid rgba(56,238,102,0.4)",
+        borderRadius: 100,
+        padding: "2px 8px"
+      }
+    }, o.tag)), /*#__PURE__*/React.createElement("div", {
       className: "fine",
       style: {
-        marginTop: 6
+        margin: 0,
+        paddingLeft: 26
       }
-    }, "Sundays at 6pm. The invite links straight back to neurl-os.com."));
-  }
-  return /*#__PURE__*/React.createElement("div", {
-    className: "card",
-    style: {
-      marginTop: 16,
-      marginBottom: 16
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "eyebrow"
-  }, "Hold your weekly slot"), /*#__PURE__*/React.createElement("p", {
-    className: "card-p",
-    style: {
-      marginTop: 8,
-      marginBottom: 6
-    }
-  }, "Put a recurring 15-minute hold on your calendar so the reading actually happens."), /*#__PURE__*/React.createElement("p", {
+    }, o.detail));
+  })), failed && /*#__PURE__*/React.createElement("p", {
     className: "fine",
     style: {
+      color: "#FF9F9F",
       marginTop: 0,
-      marginBottom: 16
+      marginBottom: 12
     }
-  }, "Sundays at 6pm, repeating weekly, with a 30-minute heads-up. The invite links back to NEURL-OS."), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 10,
-      flexWrap: "wrap"
-    }
-  }, /*#__PURE__*/React.createElement("button", {
+  }, "Couldn't turn on reminders — your browser may have blocked notifications, or this browser doesn't support them."), /*#__PURE__*/React.createElement("button", {
     className: "btn-primary",
     style: {
-      flex: "1 1 150px"
+      width: "100%"
     },
-    onClick: addToCalendar
-  }, "Add to calendar"), /*#__PURE__*/React.createElement("a", {
-    className: "btn-secondary",
-    style: {
-      flex: "1 1 150px",
-      textAlign: "center",
-      textDecoration: "none",
-      display: "inline-flex",
-      alignItems: "center",
-      justifyContent: "center"
-    },
-    href: googleUrl(),
-    target: "_blank",
-    rel: "noopener noreferrer",
-    onClick: () => {
-      try {
-        if (window.gtag) gtag("event", "calendar_hold_google");
-      } catch (e) {}
-      markDone();
-    }
-  }, "Google Calendar")));
+    disabled: busy,
+    onClick: apply
+  }, busy ? "Setting up…" : choice === "off" ? "Save preference" : "Turn on reminders"));
 }
 
-/* Identify the browser well enough to give correct install steps.
-   Every major browser puts "add to home screen" somewhere different. */
+/* ---------- install prompt ---------- */
+
+/* Detect the browsing context precisely. In-app webviews (LinkedIn, Instagram,
+   Slack, etc.) cannot install at all, so they get a different instruction. */
 function detectInstallTarget() {
   const ua = navigator.userAgent;
-  const iOS = /iphone|ipad|ipod/i.test(ua) || navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1; // iPadOS reports as Mac
+  const iOS = /iphone|ipad|ipod/i.test(ua) || navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
   const android = /android/i.test(ua);
+  const inApp = /FBAN|FBAV|Instagram|LinkedInApp|Twitter|Snapchat|Line\/|MicroMessenger|Slack|Pinterest|WhatsApp/i.test(ua) || iOS && /Safari/i.test(ua) === false && /CriOS|FxiOS|EdgiOS/i.test(ua) === false;
+  if (inApp) return {
+    key: "inapp",
+    os: iOS ? "ios" : android ? "android" : "other"
+  };
   if (iOS) {
     if (/CriOS/i.test(ua)) return {
       key: "ios-chrome",
-      label: "Chrome",
-      share: "the Share button in the address bar"
+      os: "ios",
+      browser: "Chrome"
     };
     if (/EdgiOS/i.test(ua)) return {
       key: "ios-edge",
-      label: "Edge",
-      share: "the Share button in the menu bar"
+      os: "ios",
+      browser: "Edge"
     };
     if (/FxiOS/i.test(ua)) return {
       key: "ios-firefox",
-      label: "Firefox",
-      share: "the Share button in the menu"
+      os: "ios",
+      browser: "Firefox"
     };
     return {
       key: "ios-safari",
-      label: "Safari",
-      share: "the Share button at the bottom of the screen"
+      os: "ios",
+      browser: "Safari"
     };
   }
   if (android) {
     if (/SamsungBrowser/i.test(ua)) return {
       key: "android-samsung",
-      label: "Samsung Internet"
+      os: "android",
+      browser: "Samsung Internet"
     };
     if (/Firefox/i.test(ua)) return {
       key: "android-firefox",
-      label: "Firefox"
+      os: "android",
+      browser: "Firefox"
     };
     return {
       key: "android-chrome",
-      label: "Chrome"
+      os: "android",
+      browser: "Chrome"
     };
   }
   if (/Edg\//i.test(ua)) return {
     key: "desktop-edge",
-    label: "Edge"
+    os: "desktop",
+    browser: "Edge"
   };
   if (/Firefox/i.test(ua)) return {
     key: "desktop-firefox",
-    label: "Firefox"
+    os: "desktop",
+    browser: "Firefox"
   };
   if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) return {
     key: "desktop-safari",
-    label: "Safari"
+    os: "desktop",
+    browser: "Safari"
   };
   return {
     key: "desktop-chrome",
-    label: "Chrome"
+    os: "desktop",
+    browser: "Chrome"
   };
 }
-function installInstructions(t) {
+
+/* Numbered steps per browser. Each step is short enough to follow one-handed. */
+function installSteps(t) {
   switch (t.key) {
     case "ios-safari":
+      return {
+        heading: "In Safari, three taps:",
+        steps: ["Tap the Share icon at the bottom of the screen (a square with an arrow pointing up)", "Scroll down the list and tap Add to Home Screen", "Tap Add in the top right"]
+      };
     case "ios-chrome":
+      return {
+        heading: "In Chrome, three taps:",
+        steps: ["Tap the Share icon in the address bar (a square with an arrow pointing up)", "Scroll down and tap Add to Home Screen", "Tap Add in the top right"]
+      };
     case "ios-edge":
-      return /*#__PURE__*/React.createElement(React.Fragment, null, "In ", t.label, ", tap ", t.share, ", scroll down, then choose ", /*#__PURE__*/React.createElement("strong", null, "Add to Home Screen"), ".");
+      return {
+        heading: "In Edge, three taps:",
+        steps: ["Tap the menu (…) at the bottom", "Tap Share, then Add to Home Screen", "Tap Add"]
+      };
     case "ios-firefox":
-      return /*#__PURE__*/React.createElement(React.Fragment, null, "Firefox on iPhone can't add to the home screen. Open ", /*#__PURE__*/React.createElement("strong", null, "neurl-os.com"), " in Safari, tap Share, then ", /*#__PURE__*/React.createElement("strong", null, "Add to Home Screen"), ".");
-    case "android-samsung":
-      return /*#__PURE__*/React.createElement(React.Fragment, null, "Tap the menu (☰), choose ", /*#__PURE__*/React.createElement("strong", null, "Add page to"), ", then ", /*#__PURE__*/React.createElement("strong", null, "Home screen"), ".");
-    case "android-firefox":
-      return /*#__PURE__*/React.createElement(React.Fragment, null, "Tap the menu (⋮), then choose ", /*#__PURE__*/React.createElement("strong", null, "Install"), " or ", /*#__PURE__*/React.createElement("strong", null, "Add to Home screen"), ".");
+      return {
+        heading: "Firefox on iPhone can't do this.",
+        steps: ["Copy the link below", "Open Safari and paste it", "Tap Share, then Add to Home Screen"],
+        showCopy: true
+      };
     case "android-chrome":
-      return /*#__PURE__*/React.createElement(React.Fragment, null, "Tap the menu (⋮), then choose ", /*#__PURE__*/React.createElement("strong", null, "Add to Home screen"), ".");
+      return {
+        heading: "In Chrome, three taps:",
+        steps: ["Tap the menu (⋮) in the top right", "Tap Add to Home screen (or Install app)", "Tap Install"]
+      };
+    case "android-samsung":
+      return {
+        heading: "In Samsung Internet:",
+        steps: ["Tap the menu (☰) at the bottom right", "Tap Add page to", "Choose Home screen"]
+      };
+    case "android-firefox":
+      return {
+        heading: "In Firefox:",
+        steps: ["Tap the menu (⋮) in the top right", "Tap Install or Add to Home screen", "Confirm"]
+      };
     case "desktop-safari":
-      return /*#__PURE__*/React.createElement(React.Fragment, null, "In Safari, choose ", /*#__PURE__*/React.createElement("strong", null, "File → Add to Dock"), " to keep NEURL-OS one click away.");
+      return {
+        heading: "In Safari on Mac:",
+        steps: ["Open the File menu", "Choose Add to Dock", "Click Add"]
+      };
     case "desktop-firefox":
-      return /*#__PURE__*/React.createElement(React.Fragment, null, "Firefox on desktop doesn't install web apps. Bookmark ", /*#__PURE__*/React.createElement("strong", null, "neurl-os.com"), ", or open it in Chrome or Edge to install.");
+      return {
+        heading: "Firefox on desktop can't install web apps.",
+        steps: ["Copy the link below", "Open it in Chrome or Edge", "Click the install icon in the address bar"],
+        showCopy: true
+      };
+    case "inapp":
+      return {
+        heading: "You're in an in-app browser.",
+        steps: ["Tap the menu (⋯) in the corner", t.os === "ios" ? "Choose Open in Safari" : "Choose Open in browser", "Then follow the Add to Home Screen steps there"],
+        showCopy: true
+      };
     default:
-      return /*#__PURE__*/React.createElement(React.Fragment, null, "Click the install icon (⊕) at the right of the address bar, then ", /*#__PURE__*/React.createElement("strong", null, "Install"), ".");
+      return {
+        heading: "In " + (t.browser || "your browser") + ":",
+        steps: ["Look at the right end of the address bar", "Click the install icon (a monitor with an arrow, or ⊕)", "Click Install"]
+      };
   }
 }
 function InstallPrompt() {
   const [status, setStatus] = useState("hidden");
   const [target, setTarget] = useState(null);
   const [iconOk, setIconOk] = useState(true);
+  const [copied, setCopied] = useState(false);
   useEffect(() => {
     try {
       if (localStorage.getItem("neurl:install_dismissed")) return;
@@ -1938,6 +2098,14 @@ function InstallPrompt() {
     } catch (e) {}
     setStatus("hidden");
   };
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText("https://neurl-os.com");
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch (e) {}
+  };
+  const guide = installSteps(target);
   return /*#__PURE__*/React.createElement("div", {
     className: "card",
     style: {
@@ -1949,7 +2117,7 @@ function InstallPrompt() {
       display: "flex",
       alignItems: "center",
       gap: 14,
-      marginBottom: 12
+      marginBottom: 14
     }
   }, iconOk && /*#__PURE__*/React.createElement("img", {
     src: "/icon-192.png",
@@ -2012,15 +2180,327 @@ function InstallPrompt() {
     },
     onClick: dismiss
   }, "Not now"))) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("p", {
-    className: "fine",
+    className: "card-p",
     style: {
       marginTop: 0,
-      marginBottom: 14
+      marginBottom: 12,
+      fontSize: 15,
+      fontWeight: 600
     }
-  }, installInstructions(target)), /*#__PURE__*/React.createElement("button", {
+  }, guide.heading), /*#__PURE__*/React.createElement("ol", {
+    style: {
+      margin: "0 0 16px",
+      padding: 0,
+      listStyle: "none",
+      counterReset: "step"
+    }
+  }, guide.steps.map((s, i) => /*#__PURE__*/React.createElement("li", {
+    key: i,
+    style: {
+      display: "flex",
+      gap: 12,
+      alignItems: "flex-start",
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      flexShrink: 0,
+      width: 22,
+      height: 22,
+      borderRadius: "50%",
+      background: "rgba(56,238,102,0.15)",
+      border: "1px solid rgba(56,238,102,0.45)",
+      color: "#38EE66",
+      fontSize: 12,
+      fontWeight: 700,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center"
+    }
+  }, i + 1), /*#__PURE__*/React.createElement("span", {
+    className: "fine",
+    style: {
+      margin: 0,
+      textAlign: "left",
+      flex: 1
+    }
+  }, s)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 10,
+      flexWrap: "wrap"
+    }
+  }, guide.showCopy && /*#__PURE__*/React.createElement("button", {
+    className: "btn-primary",
+    style: {
+      flex: "1 1 150px"
+    },
+    onClick: copyLink
+  }, copied ? "Link copied" : "Copy link"), /*#__PURE__*/React.createElement("button", {
     className: "btn-secondary",
+    style: {
+      flex: "1 1 120px"
+    },
     onClick: dismiss
-  }, "Got it")));
+  }, "Got it"))));
+}
+
+/* ---------- daily check-in ---------- */
+
+const DAILY_QUESTIONS = [{
+  key: "sleep",
+  eyebrow: "Sleep",
+  title: "How did you sleep?",
+  labels: ["Terrible", "Poor", "Okay", "Good", "Great"]
+}, {
+  key: "workload",
+  eyebrow: "Workload",
+  title: "How heavy was today?",
+  labels: ["Light", "Easy", "Normal", "Heavy", "Crushing"]
+}, {
+  key: "movement",
+  eyebrow: "Movement",
+  title: "Did you move or recover?",
+  labels: ["Nothing", "Barely", "A little", "Decent", "Solid session"]
+}];
+function DailyRing({
+  count,
+  size = 84
+}) {
+  const total = 7;
+  const pct = Math.min(count / total, 1);
+  const r = size / 2 - 6;
+  const c = 2 * Math.PI * r;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "relative",
+      width: size,
+      height: size,
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement("svg", {
+    width: size,
+    height: size,
+    style: {
+      transform: "rotate(-90deg)"
+    }
+  }, /*#__PURE__*/React.createElement("circle", {
+    cx: size / 2,
+    cy: size / 2,
+    r: r,
+    fill: "none",
+    stroke: "rgba(255,255,255,0.10)",
+    strokeWidth: "6"
+  }), /*#__PURE__*/React.createElement("circle", {
+    cx: size / 2,
+    cy: size / 2,
+    r: r,
+    fill: "none",
+    stroke: "#38EE66",
+    strokeWidth: "6",
+    strokeLinecap: "round",
+    strokeDasharray: c,
+    strokeDashoffset: c * (1 - pct),
+    style: {
+      transition: "stroke-dashoffset .6s ease"
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "absolute",
+      inset: 0,
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 22,
+      fontWeight: 800,
+      color: "#F2F4F7",
+      lineHeight: 1
+    }
+  }, count), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: "#8B93A1",
+      letterSpacing: "0.08em"
+    }
+  }, "of ", total)));
+}
+
+/* Card on the dashboard that opens the daily check-in. */
+function DailyCard({
+  daily,
+  onStart
+}) {
+  const week = recentDaily(daily, 7);
+  const done = loggedToday(daily);
+  return /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      marginTop: 16,
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 16
+    }
+  }, /*#__PURE__*/React.createElement(DailyRing, {
+    count: week.length
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow",
+    style: {
+      marginBottom: 6
+    }
+  }, "Daily check-in"), /*#__PURE__*/React.createElement("p", {
+    className: "card-p",
+    style: {
+      margin: 0,
+      fontSize: 15
+    }
+  }, done ? "Logged today. See you tomorrow." : week.length === 0 ? "Three sliders, fifteen seconds. Makes Sunday's reading sharper." : "Fifteen seconds. Keeps your weekly reading accurate."))), !done && /*#__PURE__*/React.createElement("button", {
+    className: "btn-primary",
+    style: {
+      marginTop: 16,
+      width: "100%"
+    },
+    onClick: onStart
+  }, "Log today"), done && week.length >= 2 && /*#__PURE__*/React.createElement("p", {
+    className: "fine",
+    style: {
+      marginTop: 12,
+      marginBottom: 0
+    }
+  }, "Your next weekly calibration will arrive pre-filled from these."));
+}
+function DailyCheckin({
+  daily,
+  onSave,
+  onCancel
+}) {
+  const [vals, setVals] = useState({
+    sleep: 3,
+    workload: 3,
+    movement: 3
+  });
+  const [saving, setSaving] = useState(false);
+  const week = recentDaily(daily, 7);
+  const setVal = (k, v) => setVals(s => ({
+    ...s,
+    [k]: v
+  }));
+  return /*#__PURE__*/React.createElement("div", {
+    className: "fade-in"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 20
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn-ghost",
+    onClick: onCancel,
+    style: {
+      background: "none",
+      border: "none",
+      color: "#8B93A1",
+      cursor: "pointer",
+      padding: 0
+    }
+  }, "‹ Back"), /*#__PURE__*/React.createElement(DailyRing, {
+    count: week.length,
+    size: 44
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow"
+  }, "Daily check-in"), /*#__PURE__*/React.createElement("h2", {
+    className: "hero-h",
+    style: {
+      marginTop: 8,
+      marginBottom: 6
+    }
+  }, "Today in fifteen seconds."), /*#__PURE__*/React.createElement("p", {
+    className: "hero-p",
+    style: {
+      marginBottom: 28
+    }
+  }, "No score today — these sharpen your weekly reading."), DAILY_QUESTIONS.map(q => /*#__PURE__*/React.createElement("div", {
+    key: q.key,
+    style: {
+      marginBottom: 30
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow",
+    style: {
+      marginBottom: 6
+    }
+  }, q.eyebrow), /*#__PURE__*/React.createElement("p", {
+    className: "card-p",
+    style: {
+      marginTop: 0,
+      marginBottom: 14,
+      fontSize: 17,
+      fontWeight: 600
+    }
+  }, q.title), /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 20,
+      fontWeight: 700,
+      color: "#38EE66"
+    }
+  }, q.labels[vals[q.key] - 1])), /*#__PURE__*/React.createElement("input", {
+    type: "range",
+    min: "1",
+    max: "5",
+    step: "1",
+    value: vals[q.key],
+    onChange: e => setVal(q.key, Number(e.target.value)),
+    style: {
+      width: "100%",
+      accentColor: "#38EE66"
+    },
+    "aria-label": q.title
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      marginTop: 4
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "fine"
+  }, q.labels[0]), /*#__PURE__*/React.createElement("span", {
+    className: "fine"
+  }, q.labels[4])))), /*#__PURE__*/React.createElement("button", {
+    className: "btn-primary",
+    style: {
+      width: "100%"
+    },
+    disabled: saving,
+    onClick: async () => {
+      setSaving(true);
+      await onSave(vals);
+    }
+  }, saving ? "Saving…" : "Log today"), /*#__PURE__*/React.createElement("p", {
+    className: "fine",
+    style: {
+      textAlign: "center",
+      marginTop: 14
+    }
+  }, "Your NEURL Score still updates weekly."));
 }
 function App() {
   const [view, setView] = useState("loading");
@@ -2028,13 +2508,15 @@ function App() {
     history: [],
     user: null,
     profile: {},
-    activeCommitment: null
+    activeCommitment: null,
+    daily: []
   });
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({
     ...DEFAULT_ANSWERS
   });
   const [commitmentChoice, setCommitmentChoice] = useState(null);
+  const [prefillCount, setPrefillCount] = useState(0);
   const [lastCheckInDate, setLastCheckInDate] = useState(null);
   const [dir, setDir] = useState(1);
   const topRef = useRef(null);
@@ -2170,9 +2652,21 @@ function App() {
     setCommitmentChoice(interventionName);
   };
   const startCheckin = () => {
-    setAnswers({
-      ...DEFAULT_ANSWERS
-    });
+    const pre = prefillFromDaily(state.daily);
+    if (pre) {
+      setAnswers({
+        ...DEFAULT_ANSWERS,
+        sleepQuality: pre.sleepQuality,
+        highDemandDaysCount: pre.highDemandDaysCount,
+        exerciseDays: pre.exerciseDays
+      });
+      setPrefillCount(pre.count);
+    } else {
+      setAnswers({
+        ...DEFAULT_ANSWERS
+      });
+      setPrefillCount(0);
+    }
     setStep(0);
     setDir(1);
     // If they have an active commitment, show completion check first
@@ -2198,6 +2692,27 @@ function App() {
     setState(nextState);
     await saveState(nextState);
     setView("checkin");
+  };
+  const saveDaily = async entry => {
+    const today = dayKey(new Date());
+    const kept = (state.daily || []).filter(d => dayKey(d.date) !== today);
+    const nextDaily = [...kept, {
+      date: new Date().toISOString(),
+      ...entry
+    }].slice(-60);
+    const nextState = {
+      ...state,
+      daily: nextDaily
+    };
+    setState(nextState);
+    await saveState(nextState);
+    try {
+      if (window.gtag) gtag("event", "daily_checkin");
+    } catch (e) {}
+    try {
+      if (window.neurlReportDaily) window.neurlReportDaily();
+    } catch (e) {}
+    setView(state.history.length ? "today" : "welcome");
   };
   const set = (key, val) => setAnswers(a => ({
     ...a,
@@ -2929,7 +3444,28 @@ function App() {
     commitment: state.activeCommitment,
     onComplete: handleCompletionLogged,
     onSkip: () => setView("checkin")
-  }), view === "checkin" && q && /*#__PURE__*/React.createElement("div", {
+  }), view === "daily" && /*#__PURE__*/React.createElement(DailyCheckin, {
+    daily: state.daily,
+    onSave: saveDaily,
+    onCancel: () => setView(state.history.length ? "today" : "welcome")
+  }), view === "checkin" && q && prefillCount >= 2 && step === 0 && /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      marginBottom: 16,
+      borderColor: "rgba(56,238,102,0.35)"
+    }
+  }, /*#__PURE__*/React.createElement("p", {
+    className: "card-p",
+    style: {
+      margin: 0,
+      fontSize: 15
+    }
+  }, "Filled from your ", prefillCount, " daily check-in", prefillCount === 1 ? "" : "s", " this week."), /*#__PURE__*/React.createElement("p", {
+    className: "fine",
+    style: {
+      marginTop: 6
+    }
+  }, "Sleep, demand days and movement are already answered — edit anything that looks off.")), view === "checkin" && q && /*#__PURE__*/React.createElement("div", {
     className: "fade-in"
   }, /*#__PURE__*/React.createElement("div", {
     className: "checkin-top"
@@ -3122,12 +3658,16 @@ function App() {
   }, latest.charge >= prev.charge ? "▲" : "▼", " ", Math.abs(latest.charge - prev.charge), " vs last week"), forecast && /*#__PURE__*/React.createElement(PredictionCard, {
     charge: latest.charge,
     forecast: forecast
-  }), /*#__PURE__*/React.createElement(PushPrompt, {
-    isBest: best === latest.charge && state.history.length > 1
+  }), /*#__PURE__*/React.createElement(ReminderPrefs, {
+    isBest: best === latest.charge && state.history.length > 1,
+    daily: state.daily
   }), /*#__PURE__*/React.createElement(CalendarHold, {
     charge: latest.charge,
     projected: forecast ? forecast.projected : null
-  }), /*#__PURE__*/React.createElement(InstallPrompt, null), latest.subscores && /*#__PURE__*/React.createElement("div", {
+  }), /*#__PURE__*/React.createElement(InstallPrompt, null), /*#__PURE__*/React.createElement(DailyCard, {
+    daily: state.daily,
+    onStart: () => setView("daily")
+  }), latest.subscores && /*#__PURE__*/React.createElement("div", {
     className: "card",
     style: {
       marginTop: 16,
@@ -3272,6 +3812,9 @@ function App() {
     onClick: () => openLogin("today")
   }, "Log in to save streaks")), state.activeCommitment && /*#__PURE__*/React.createElement(StreakBadge, {
     commitment: state.activeCommitment
+  }), /*#__PURE__*/React.createElement(DailyCard, {
+    daily: state.daily,
+    onStart: () => setView("daily")
   }), /*#__PURE__*/React.createElement("div", {
     className: "center-col",
     style: {
