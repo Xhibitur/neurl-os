@@ -337,9 +337,43 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   <script>
 /* ---------- NEURL-OS runtime shim ---------- */
 
-function neurlLog(event) {
+/* ---------- partner links + admin route ---------- */
+window.NEURL_PARTNER = null;
+window.NEURL_ADMIN = false;
+(function () {
   try {
-    if (window.gtag) gtag('event', event);
+    var q = new URLSearchParams(location.search);
+    window.NEURL_ADMIN = q.has("admin");
+    var slug = (q.get("p") || "").toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 40);
+    if (slug) {
+      window.NEURL_PARTNER_SLUG = slug;
+      neurlLog("partner_visit");
+      try {
+        if (window.gtag) gtag("set", "user_properties", {
+          partner: slug
+        });
+      } catch (e) {}
+    }
+  } catch (e) {}
+})();
+window.neurlLoadPartner = async function () {
+  var slug = window.NEURL_PARTNER_SLUG;
+  if (!slug) return null;
+  try {
+    var res = await fetch("/.netlify/functions/partners?p=" + encodeURIComponent(slug));
+    if (!res.ok) return null;
+    var p = await res.json();
+    window.NEURL_PARTNER = p;
+    return p;
+  } catch (e) {
+    return null;
+  }
+};
+function neurlLog(event, params) {
+  try {
+    var p = params || {};
+    if (window.NEURL_PARTNER_SLUG) p.partner = window.NEURL_PARTNER_SLUG;
+    if (window.gtag) gtag('event', event, p);
   } catch (e) {}
 }
 try {
@@ -1090,8 +1124,8 @@ const QUESTIONS = [{
 }, {
   key: "tasksCompleted",
   domain: "Performance",
-  title: "Important things you finished this week?",
-  subtitle: "Shipped work, closed deals, hard problems solved. Don't count meetings.",
+  title: "Things you finished this week that mattered?",
+  subtitle: "Tasks, projects, sessions or goals you actually completed. Skip anything routine.",
   type: "slider",
   min: 0,
   max: 20,
@@ -1100,7 +1134,7 @@ const QUESTIONS = [{
 }, {
   key: "outputQuality",
   domain: "Performance",
-  title: "Quality of work this week?",
+  title: "Quality of what you produced this week?",
   type: "chips",
   options: [{
     id: "excellent",
@@ -1121,8 +1155,8 @@ const QUESTIONS = [{
 }, {
   key: "openDecisions",
   domain: "Cognitive Load",
-  title: "Open projects or decisions waiting on you?",
-  subtitle: "Anything unfinished that still needs your call. Most people land between 5 and 15.",
+  title: "How many unfinished things are on your mind?",
+  subtitle: "Anything still waiting on a decision or an action from you. Most people land between 5 and 15.",
   type: "slider",
   min: 0,
   max: 50,
@@ -1132,7 +1166,7 @@ const QUESTIONS = [{
   key: "contextSwitches",
   domain: "Cognitive Load",
   title: "How many times a day does your focus jump?",
-  subtitle: "Moving between tasks, meetings, or messages. A rough count is fine.",
+  subtitle: "Switching between tasks, people, or your phone. A rough count is fine.",
   type: "slider",
   min: 2,
   max: 20,
@@ -1141,8 +1175,8 @@ const QUESTIONS = [{
 }, {
   key: "deepWorkBlocks",
   domain: "Cognitive Load",
-  title: "Long stretches of focused work this week?",
-  subtitle: "Sessions of 90 minutes or more with no interruptions. Last question.",
+  title: "Long stretches of focus this week?",
+  subtitle: "Blocks of 90 minutes or more with no interruptions. Last question.",
   type: "slider",
   min: 0,
   max: 15,
@@ -1676,7 +1710,422 @@ function StreakBadge({
 
 /* ============================================================ */
 
-/* ---------- retention components ---------- */
+/* ---------- partner + admin ---------- */
+
+/* Thin bar at the very top of the page on a partner link. */
+function PartnerBanner({
+  partner
+}) {
+  if (!partner) return null;
+  const accent = partner.accent || "#38EE66";
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 12,
+      padding: "12px 16px",
+      marginBottom: 20,
+      background: "rgba(255,255,255,0.04)",
+      border: "1px solid rgba(255,255,255,0.10)",
+      borderRadius: 14
+    }
+  }, partner.logoUrl && /*#__PURE__*/React.createElement("img", {
+    src: partner.logoUrl,
+    alt: partner.name,
+    height: "28",
+    style: {
+      maxHeight: 28,
+      maxWidth: 110,
+      objectFit: "contain"
+    },
+    onError: e => {
+      e.target.style.display = "none";
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "left",
+      lineHeight: 1.3
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      letterSpacing: "0.16em",
+      textTransform: "uppercase",
+      color: "#8B93A1"
+    }
+  }, "Presented by"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 15,
+      fontWeight: 700,
+      color: accent
+    }
+  }, partner.name)));
+}
+
+/* Co-branded landing screen. Keeps the homepage promise, adds the partner. */
+function PartnerIntro({
+  partner,
+  onStart
+}) {
+  const accent = partner.accent || "#38EE66";
+  return /*#__PURE__*/React.createElement("div", {
+    className: "fade-in"
+  }, /*#__PURE__*/React.createElement(PartnerBanner, {
+    partner: partner
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow"
+  }, partner.name, " × NEURL-OS"), /*#__PURE__*/React.createElement("h1", {
+    className: "hero-h",
+    style: {
+      marginTop: 10,
+      marginBottom: 14
+    }
+  }, partner.headline || "Find out what your body and mind can handle this week."), /*#__PURE__*/React.createElement("p", {
+    className: "hero-p",
+    style: {
+      marginBottom: 24
+    }
+  }, partner.blurb || "A free 2-minute check-in turns your habits into one score — your capacity to perform this week."), /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      marginBottom: 24,
+      borderColor: "rgba(255,255,255,0.10)"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow",
+    style: {
+      marginBottom: 10
+    }
+  }, "How it works"), ["Answer a few questions about your week — about 2 minutes", "Get one score from 0–100 and see how you compare to your age group", "Optional 15-second daily check-in keeps next week's score accurate"].map((s, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      display: "flex",
+      gap: 12,
+      alignItems: "flex-start",
+      marginBottom: i === 2 ? 0 : 10
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      flexShrink: 0,
+      width: 22,
+      height: 22,
+      borderRadius: "50%",
+      background: "rgba(56,238,102,0.15)",
+      border: "1px solid " + accent,
+      color: accent,
+      fontSize: 12,
+      fontWeight: 700,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center"
+    }
+  }, i + 1), /*#__PURE__*/React.createElement("span", {
+    className: "fine",
+    style: {
+      margin: 0,
+      textAlign: "left",
+      flex: 1
+    }
+  }, s)))), /*#__PURE__*/React.createElement("button", {
+    className: "btn-primary",
+    style: {
+      width: "100%"
+    },
+    onClick: onStart
+  }, "Get my NEURL Score"), /*#__PURE__*/React.createElement("p", {
+    className: "fine",
+    style: {
+      textAlign: "center",
+      marginTop: 14
+    }
+  }, "Free · No login · Nothing shared with ", partner.name));
+}
+
+/* Hidden admin. Open neurl-os.com/?admin — the PIN is verified server-side. */
+function AdminPage({
+  onExit
+}) {
+  const [pin, setPin] = useState("");
+  const [authed, setAuthed] = useState(false);
+  const [partners, setPartners] = useState([]);
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [form, setForm] = useState({
+    slug: "",
+    name: "",
+    kind: "gym",
+    headline: "",
+    blurb: "",
+    logoUrl: "",
+    accent: "#38EE66"
+  });
+  const API = "/.netlify/functions/partners";
+  const call = async payload => {
+    const res = await fetch(API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        ...payload,
+        pin
+      })
+    });
+    return {
+      ok: res.ok,
+      data: await res.json().catch(() => ({}))
+    };
+  };
+  const load = async () => {
+    setBusy(true);
+    const {
+      ok,
+      data
+    } = await call({
+      action: "list"
+    });
+    setBusy(false);
+    if (!ok) {
+      setMsg(data.error === "bad pin" ? "Wrong PIN" : "Error: " + (data.error || "unknown"));
+      return false;
+    }
+    setPartners(data.partners || []);
+    setAuthed(true);
+    setMsg("");
+    return true;
+  };
+  const save = async () => {
+    if (!form.name.trim()) {
+      setMsg("Name is required");
+      return;
+    }
+    setBusy(true);
+    const {
+      ok,
+      data
+    } = await call({
+      action: "save",
+      ...form
+    });
+    setBusy(false);
+    if (!ok) {
+      setMsg("Error: " + (data.error || "unknown"));
+      return;
+    }
+    setMsg("Saved — " + data.url);
+    setForm({
+      slug: "",
+      name: "",
+      kind: "gym",
+      headline: "",
+      blurb: "",
+      logoUrl: "",
+      accent: "#38EE66"
+    });
+    load();
+  };
+  const remove = async slug => {
+    setBusy(true);
+    await call({
+      action: "delete",
+      slug
+    });
+    setBusy(false);
+    load();
+  };
+  const field = (label, key, placeholder, hint) => /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "fine",
+    style: {
+      display: "block",
+      marginBottom: 6,
+      textAlign: "left"
+    }
+  }, label), /*#__PURE__*/React.createElement("input", {
+    value: form[key],
+    placeholder: placeholder,
+    onChange: e => setForm(f => ({
+      ...f,
+      [key]: e.target.value
+    })),
+    style: {
+      width: "100%",
+      padding: "12px 14px",
+      borderRadius: 12,
+      background: "rgba(255,255,255,0.04)",
+      border: "1px solid rgba(255,255,255,0.12)",
+      color: "#F2F4F7",
+      font: "inherit",
+      fontSize: 15,
+      boxSizing: "border-box"
+    }
+  }), hint && /*#__PURE__*/React.createElement("div", {
+    className: "fine",
+    style: {
+      marginTop: 5,
+      textAlign: "left",
+      opacity: 0.75
+    }
+  }, hint));
+  if (!authed) {
+    return /*#__PURE__*/React.createElement("div", {
+      className: "fade-in",
+      style: {
+        maxWidth: 380,
+        margin: "0 auto"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "eyebrow"
+    }, "NEURL-OS"), /*#__PURE__*/React.createElement("h2", {
+      className: "hero-h",
+      style: {
+        marginTop: 8,
+        marginBottom: 20
+      }
+    }, "Admin"), /*#__PURE__*/React.createElement("input", {
+      type: "password",
+      inputMode: "numeric",
+      value: pin,
+      placeholder: "PIN",
+      onChange: e => setPin(e.target.value),
+      onKeyDown: e => {
+        if (e.key === "Enter") load();
+      },
+      style: {
+        width: "100%",
+        padding: "14px 16px",
+        borderRadius: 12,
+        marginBottom: 14,
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.12)",
+        color: "#F2F4F7",
+        font: "inherit",
+        fontSize: 16,
+        boxSizing: "border-box"
+      }
+    }), msg && /*#__PURE__*/React.createElement("p", {
+      className: "fine",
+      style: {
+        color: "#FF9F9F",
+        marginTop: 0
+      }
+    }, msg), /*#__PURE__*/React.createElement("button", {
+      className: "btn-primary",
+      style: {
+        width: "100%"
+      },
+      disabled: busy,
+      onClick: load
+    }, busy ? "Checking…" : "Enter"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-secondary",
+      style: {
+        width: "100%",
+        marginTop: 10
+      },
+      onClick: onExit
+    }, "Back to app"));
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    className: "fade-in"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 20
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow"
+  }, "Admin"), /*#__PURE__*/React.createElement("h2", {
+    className: "hero-h",
+    style: {
+      marginTop: 6,
+      marginBottom: 0,
+      fontSize: 28
+    }
+  }, "Partner pages")), /*#__PURE__*/React.createElement("button", {
+    className: "btn-secondary",
+    onClick: onExit
+  }, "Exit")), /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      marginBottom: 22
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow",
+    style: {
+      marginBottom: 14
+    }
+  }, "New partner"), field("Business name", "name", "Lift Lab NYC"), field("Link slug", "slug", "liftlab", "Leave blank to generate from the name. Becomes neurl-os.com/?p=slug"), field("Headline", "headline", "Train hard. Recover smarter.", "Optional — replaces the default headline"), field("Sub-headline", "blurb", "See what your body can handle this week.", "Optional"), field("Logo URL", "logoUrl", "https://…/logo.png", "Optional — a hosted image URL"), field("Accent colour", "accent", "#38EE66", "Hex code, e.g. their brand colour"), msg && /*#__PURE__*/React.createElement("p", {
+    className: "fine",
+    style: {
+      color: msg.startsWith("Saved") ? "#38EE66" : "#FF9F9F",
+      wordBreak: "break-all"
+    }
+  }, msg), /*#__PURE__*/React.createElement("button", {
+    className: "btn-primary",
+    style: {
+      width: "100%"
+    },
+    disabled: busy,
+    onClick: save
+  }, busy ? "Saving…" : "Create partner page")), /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow",
+    style: {
+      marginBottom: 12
+    }
+  }, "Live partners (", partners.length, ")"), partners.length === 0 && /*#__PURE__*/React.createElement("p", {
+    className: "fine"
+  }, "None yet. Create one above."), partners.map(p => /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    key: p.slug,
+    style: {
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement("p", {
+    className: "card-p",
+    style: {
+      margin: 0,
+      fontWeight: 700
+    }
+  }, p.name), /*#__PURE__*/React.createElement("p", {
+    className: "fine",
+    style: {
+      marginTop: 6,
+      wordBreak: "break-all"
+    }
+  }, "neurl-os.com/?p=", p.slug), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 10,
+      marginTop: 12,
+      flexWrap: "wrap"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn-secondary",
+    style: {
+      flex: "1 1 120px"
+    },
+    onClick: () => {
+      try {
+        navigator.clipboard.writeText("https://neurl-os.com/?p=" + p.slug);
+        setMsg("Copied link for " + p.name);
+      } catch (e) {}
+    }
+  }, "Copy link"), /*#__PURE__*/React.createElement("button", {
+    className: "btn-secondary",
+    style: {
+      flex: "1 1 100px"
+    },
+    onClick: () => remove(p.slug)
+  }, "Delete")))));
+}
+
+/* ---------- calendar hold: daily 7pm + weekly Sunday ---------- */
 
 function nextSunday1800() {
   const d = new Date();
@@ -1685,10 +2134,172 @@ function nextSunday1800() {
   d.setHours(18, 0, 0, 0);
   return d;
 }
+function tomorrowAt(hour) {
+  const d = new Date();
+  if (d.getHours() >= hour) d.setDate(d.getDate() + 1);
+  d.setHours(hour, 0, 0, 0);
+  return d;
+}
 function icsStamp(d) {
   const p = n => String(n).padStart(2, "0");
   return d.getUTCFullYear() + p(d.getUTCMonth() + 1) + p(d.getUTCDate()) + "T" + p(d.getUTCHours()) + p(d.getUTCMinutes()) + "00Z";
 }
+function CalendarHold({
+  charge,
+  projected
+}) {
+  const [done, setDone] = useState(() => {
+    try {
+      return !!localStorage.getItem("neurl:calendar_added");
+    } catch (e) {
+      return false;
+    }
+  });
+  const dailyStart = tomorrowAt(19); // 7pm
+  const dailyEnd = new Date(dailyStart.getTime() + 5 * 60000); // 5 min
+  const weeklyStart = nextSunday1800(); // Sunday 6pm
+  const weeklyEnd = new Date(weeklyStart.getTime() + 15 * 60000);
+  const dailyBody = "15 seconds. Three sliders: sleep, workload, movement.\\n\\n" + "Daily check-ins keep your weekly NEURL Score accurate instead of a guess.\\n" + "Log today: https://neurl-os.com\\n\\n" + "NEURL-OS — Performance, measured.";
+  const weeklyBody = "Two minutes. Get this week's NEURL Score.\\n\\n" + "Last reading: " + charge + (projected ? "  |  Projected: " + projected : "") + "\\n\\n" + "Take this week's reading: https://neurl-os.com\\n\\n" + "NEURL-OS — Performance, measured.";
+  function vevent(uid, start, end, rrule, summary, body, alarmMin, alarmText) {
+    return ["BEGIN:VEVENT", "UID:" + uid + "@neurl-os.com", "DTSTAMP:" + icsStamp(new Date()), "DTSTART:" + icsStamp(start), "DTEND:" + icsStamp(end), "RRULE:" + rrule, "SUMMARY:" + summary, "DESCRIPTION:" + body, "URL:https://neurl-os.com", "LOCATION:https://neurl-os.com", "BEGIN:VALARM", "TRIGGER:-PT" + alarmMin + "M", "ACTION:DISPLAY", "DESCRIPTION:" + alarmText, "END:VALARM", "END:VEVENT"].join("\r\n");
+  }
+  function markDone() {
+    try {
+      localStorage.setItem("neurl:calendar_added", "1");
+    } catch (e) {}
+    setDone(true);
+  }
+  function download(which) {
+    const parts = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//NEURL-OS//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH"];
+    if (which === "daily" || which === "both") {
+      parts.push(vevent("d" + Date.now(), dailyStart, dailyEnd, "FREQ=DAILY", "NEURL-OS daily check-in", dailyBody, 0, "15 seconds — log today's check-in"));
+    }
+    if (which === "weekly" || which === "both") {
+      parts.push(vevent("w" + Date.now(), weeklyStart, weeklyEnd, "FREQ=WEEKLY;BYDAY=SU", "NEURL-OS weekly reading", weeklyBody, 30, "Your NEURL Score is ready"));
+    }
+    parts.push("END:VCALENDAR");
+    const blob = new Blob([parts.join("\r\n")], {
+      type: "text/calendar;charset=utf-8"
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = which === "weekly" ? "neurl-os-weekly.ics" : "neurl-os-checkins.ics";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    try {
+      if (window.gtag) gtag("event", "calendar_hold_" + which);
+    } catch (e) {}
+    markDone();
+  }
+  function googleUrl() {
+    return "https://calendar.google.com/calendar/render?action=TEMPLATE" + "&text=" + encodeURIComponent("NEURL-OS daily check-in") + "&dates=" + icsStamp(dailyStart) + "/" + icsStamp(dailyEnd) + "&recur=" + encodeURIComponent("RRULE:FREQ=DAILY") + "&details=" + encodeURIComponent(dailyBody.replace(/\\n/g, "\n")) + "&location=" + encodeURIComponent("https://neurl-os.com");
+  }
+  if (done) {
+    return /*#__PURE__*/React.createElement("div", {
+      className: "card",
+      style: {
+        marginTop: 16,
+        marginBottom: 16,
+        borderColor: "rgba(56,238,102,0.35)"
+      }
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "card-p",
+      style: {
+        margin: 0,
+        fontWeight: 700,
+        color: "#38EE66"
+      }
+    }, "Your slots are held"), /*#__PURE__*/React.createElement("p", {
+      className: "fine",
+      style: {
+        marginTop: 6
+      }
+    }, "Daily at 7pm, plus Sunday evening for your weekly reading. Both link back to neurl-os.com."), /*#__PURE__*/React.createElement("button", {
+      className: "btn-secondary",
+      style: {
+        marginTop: 14
+      },
+      onClick: () => {
+        try {
+          localStorage.removeItem("neurl:calendar_added");
+        } catch (e) {}
+        setDone(false);
+      }
+    }, "Add again"));
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      marginTop: 16,
+      marginBottom: 16,
+      background: "rgba(56,238,102,0.06)",
+      borderColor: "rgba(56,238,102,0.45)"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow",
+    style: {
+      color: "#38EE66"
+    }
+  }, "Hold your daily slot"), /*#__PURE__*/React.createElement("p", {
+    className: "card-p",
+    style: {
+      marginTop: 8,
+      marginBottom: 6,
+      fontSize: 16,
+      fontWeight: 600
+    }
+  }, "7:00pm every evening. Fifteen seconds."), /*#__PURE__*/React.createElement("p", {
+    className: "fine",
+    style: {
+      marginTop: 0,
+      marginBottom: 16
+    }
+  }, "A daily reminder in your calendar, plus a Sunday hold for your weekly reading. Both link straight back to NEURL-OS."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 10,
+      flexWrap: "wrap"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn-primary",
+    style: {
+      flex: "1 1 100%"
+    },
+    onClick: () => download("both")
+  }, "Add daily + weekly to calendar"), /*#__PURE__*/React.createElement("a", {
+    className: "btn-secondary",
+    style: {
+      flex: "1 1 140px",
+      textAlign: "center",
+      textDecoration: "none",
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center"
+    },
+    href: googleUrl(),
+    target: "_blank",
+    rel: "noopener noreferrer",
+    onClick: () => {
+      try {
+        if (window.gtag) gtag("event", "calendar_hold_google");
+      } catch (e) {}
+      markDone();
+    }
+  }, "Google Calendar"), /*#__PURE__*/React.createElement("button", {
+    className: "btn-secondary",
+    style: {
+      flex: "1 1 140px"
+    },
+    onClick: () => download("weekly")
+  }, "Weekly only")));
+}
+
+/* ---------- retention components ---------- */
+
 function PredictionCard({
   charge,
   forecast
@@ -1930,122 +2541,6 @@ function ReminderPrefs({
     disabled: busy,
     onClick: apply
   }, busy ? "Setting up…" : choice === "off" ? "Save preference" : "Turn on reminders"));
-}
-function CalendarHold({
-  charge,
-  projected
-}) {
-  const [done, setDone] = useState(() => {
-    try {
-      return !!localStorage.getItem("neurl:calendar_added");
-    } catch (e) {
-      return false;
-    }
-  });
-  const start = nextSunday1800();
-  const end = new Date(start.getTime() + 15 * 60000);
-  const title = "NEURL-OS weekly calibration";
-  const body = "Two minutes. Get this week's NEURL Score.\n\n" + "Last reading: " + charge + (projected ? "  |  Projected: " + projected : "") + "\n\n" + "Your score is only as current as your last calibration.\n" + "Take this week's reading: https://neurl-os.com\n\n" + "NEURL-OS — Performance, measured.";
-  function markDone() {
-    try {
-      localStorage.setItem("neurl:calendar_added", "1");
-    } catch (e) {}
-    setDone(true);
-  }
-  function addToCalendar() {
-    const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//NEURL-OS//Weekly Calibration//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", "BEGIN:VEVENT", "UID:" + Date.now() + "@neurl-os.com", "DTSTAMP:" + icsStamp(new Date()), "DTSTART:" + icsStamp(start), "DTEND:" + icsStamp(end), "RRULE:FREQ=WEEKLY;BYDAY=SU", "SUMMARY:" + title, "DESCRIPTION:" + body.replace(/\n/g, "\\n"), "URL:https://neurl-os.com", "LOCATION:https://neurl-os.com", "BEGIN:VALARM", "TRIGGER:-PT30M", "ACTION:DISPLAY", "DESCRIPTION:NEURL-OS — your weekly reading is ready", "END:VALARM", "END:VEVENT", "END:VCALENDAR"].join("\r\n");
-    const blob = new Blob([ics], {
-      type: "text/calendar;charset=utf-8"
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "neurl-os-weekly.ics";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1500);
-    try {
-      if (window.gtag) gtag("event", "calendar_hold_added");
-    } catch (e) {}
-    markDone();
-  }
-  function googleUrl() {
-    const fmt = d => icsStamp(d);
-    return "https://calendar.google.com/calendar/render?action=TEMPLATE" + "&text=" + encodeURIComponent(title) + "&dates=" + fmt(start) + "/" + fmt(end) + "&recur=" + encodeURIComponent("RRULE:FREQ=WEEKLY;BYDAY=SU") + "&details=" + encodeURIComponent(body) + "&location=" + encodeURIComponent("https://neurl-os.com");
-  }
-  if (done) {
-    return /*#__PURE__*/React.createElement("div", {
-      className: "card",
-      style: {
-        marginTop: 16,
-        marginBottom: 16
-      }
-    }, /*#__PURE__*/React.createElement("p", {
-      className: "card-p",
-      style: {
-        margin: 0,
-        fontWeight: 600
-      }
-    }, "Your weekly slot is held"), /*#__PURE__*/React.createElement("p", {
-      className: "fine",
-      style: {
-        marginTop: 6
-      }
-    }, "Sundays at 6pm. The invite links straight back to neurl-os.com."));
-  }
-  return /*#__PURE__*/React.createElement("div", {
-    className: "card",
-    style: {
-      marginTop: 16,
-      marginBottom: 16
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "eyebrow"
-  }, "Hold your weekly slot"), /*#__PURE__*/React.createElement("p", {
-    className: "card-p",
-    style: {
-      marginTop: 8,
-      marginBottom: 6
-    }
-  }, "Put a recurring 15-minute hold on your calendar so the reading actually happens."), /*#__PURE__*/React.createElement("p", {
-    className: "fine",
-    style: {
-      marginTop: 0,
-      marginBottom: 16
-    }
-  }, "Sundays at 6pm, repeating weekly, with a 30-minute heads-up. The invite links back to NEURL-OS."), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 10,
-      flexWrap: "wrap"
-    }
-  }, /*#__PURE__*/React.createElement("button", {
-    className: "btn-primary",
-    style: {
-      flex: "1 1 150px"
-    },
-    onClick: addToCalendar
-  }, "Add to calendar"), /*#__PURE__*/React.createElement("a", {
-    className: "btn-secondary",
-    style: {
-      flex: "1 1 150px",
-      textAlign: "center",
-      textDecoration: "none",
-      display: "inline-flex",
-      alignItems: "center",
-      justifyContent: "center"
-    },
-    href: googleUrl(),
-    target: "_blank",
-    rel: "noopener noreferrer",
-    onClick: () => {
-      try {
-        if (window.gtag) gtag("event", "calendar_hold_google");
-      } catch (e) {}
-      markDone();
-    }
-  }, "Google Calendar")));
 }
 
 /* ---------- install prompt ---------- */
@@ -2633,13 +3128,26 @@ function App() {
   });
   const [commitmentChoice, setCommitmentChoice] = useState(null);
   const [prefillCount, setPrefillCount] = useState(0);
+  const [partner, setPartner] = useState(null);
+  const [showAdmin, setShowAdmin] = useState(() => !!window.NEURL_ADMIN);
   const [lastCheckInDate, setLastCheckInDate] = useState(null);
   const [dir, setDir] = useState(1);
   const topRef = useRef(null);
   useEffect(() => {
     loadState().then(s => {
       setState(s);
-      setView(s.history.length ? "today" : "welcome");
+      if (window.NEURL_PARTNER_SLUG && !s.history.length) {
+        setView("partner");
+        if (window.neurlLoadPartner) {
+          window.neurlLoadPartner().then(p => {
+            if (p && p.active !== false) setPartner(p);else setView("welcome");
+          });
+        } else {
+          setView("welcome");
+        }
+      } else {
+        setView(s.history.length ? "today" : "welcome");
+      }
     });
   }, []);
   const latest = state.history[state.history.length - 1] || null;
@@ -2785,6 +3293,7 @@ function App() {
     }
     setStep(0);
     setDir(1);
+    neurlLog("calibration_started");
     // If they have an active commitment, show completion check first
     if (state.activeCommitment) setView("completion-check");else setView("checkin");
   };
@@ -2830,6 +3339,22 @@ function App() {
     } catch (e) {}
     setView(state.history.length ? "today" : "welcome");
   };
+
+  // Log quarter-way milestones so abandonment has a location, not just a count.
+  useEffect(() => {
+    if (view !== "checkin") return;
+    const total = QUESTIONS.length;
+    const pct = Math.round((step + 1) / total * 100);
+    let mark = null;
+    if (pct >= 75) mark = "75";else if (pct >= 50) mark = "50";else if (pct >= 25) mark = "25";
+    if (!mark) return;
+    try {
+      const seen = window.__neurlProgress || (window.__neurlProgress = {});
+      if (seen[mark]) return;
+      seen[mark] = 1;
+      neurlLog("calibration_progress_" + mark);
+    } catch (e) {}
+  }, [view, step]);
   const set = (key, val) => setAnswers(a => ({
     ...a,
     [key]: val
@@ -2875,7 +3400,9 @@ function App() {
     className: "shell"
   }, view === "loading" && /*#__PURE__*/React.createElement("div", {
     className: "loading-dot"
-  }), view === "welcome" && /*#__PURE__*/React.createElement("div", {
+  }), !showAdmin && partner && view !== "partner" && /*#__PURE__*/React.createElement(PartnerBanner, {
+    partner: partner
+  }), !showAdmin && view === "welcome" && /*#__PURE__*/React.createElement("div", {
     className: "fade-in center-col"
   }, /*#__PURE__*/React.createElement("div", {
     className: "wordmark"
@@ -3560,11 +4087,23 @@ function App() {
     commitment: state.activeCommitment,
     onComplete: handleCompletionLogged,
     onSkip: () => setView("checkin")
-  }), view === "daily" && /*#__PURE__*/React.createElement(DailyCheckin, {
+  }), showAdmin && /*#__PURE__*/React.createElement(AdminPage, {
+    onExit: () => {
+      setShowAdmin(false);
+      try {
+        history.replaceState(null, "", "/");
+      } catch (e) {}
+    }
+  }), !showAdmin && view === "partner" && (partner ? /*#__PURE__*/React.createElement(PartnerIntro, {
+    partner: partner,
+    onStart: startCheckin
+  }) : /*#__PURE__*/React.createElement("div", {
+    className: "loading-dot"
+  })), view === "daily" && /*#__PURE__*/React.createElement(DailyCheckin, {
     daily: state.daily,
     onSave: saveDaily,
     onCancel: () => setView(state.history.length ? "today" : "welcome")
-  }), view === "checkin" && q && prefillCount >= 2 && step === 0 && /*#__PURE__*/React.createElement("div", {
+  }), !showAdmin && view === "checkin" && q && prefillCount >= 2 && step === 0 && /*#__PURE__*/React.createElement("div", {
     className: "card",
     style: {
       marginBottom: 16,
@@ -3581,7 +4120,7 @@ function App() {
     style: {
       marginTop: 6
     }
-  }, "Sleep, demand days and movement are already answered — edit anything that looks off.")), view === "checkin" && q && /*#__PURE__*/React.createElement("div", {
+  }, "Sleep, demand days and movement are already answered — edit anything that looks off.")), !showAdmin && view === "checkin" && q && /*#__PURE__*/React.createElement("div", {
     className: "fade-in"
   }, /*#__PURE__*/React.createElement("div", {
     className: "checkin-top"
@@ -3651,7 +4190,7 @@ function App() {
     className: "btn-primary wide",
     disabled: !answered(q),
     onClick: next
-  }, step === questions.length - 1 ? "Get my NEURL Score" : "Continue")), view === "reveal" && latest && /*#__PURE__*/React.createElement("div", {
+  }, step === questions.length - 1 ? "Get my NEURL Score" : "Continue")), !showAdmin && view === "reveal" && latest && /*#__PURE__*/React.createElement("div", {
     className: "fade-in center-col"
   }, /*#__PURE__*/React.createElement("div", {
     className: "eyebrow",
@@ -3915,7 +4454,7 @@ function App() {
   }, "$30")), /*#__PURE__*/React.createElement("button", {
     className: "btn-primary",
     onClick: () => window.location.href = 'https://donate.stripe.com/00w9AT9xuaHN5bZ60Xasg01'
-  }, "Donate"))), view === "today" && latest && forecast && /*#__PURE__*/React.createElement("div", {
+  }, "Donate"))), !showAdmin && view === "today" && latest && forecast && /*#__PURE__*/React.createElement("div", {
     className: "fade-in"
   }, /*#__PURE__*/React.createElement("div", {
     className: "dash-head"
