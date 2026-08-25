@@ -1861,20 +1861,42 @@ function AdminPage({
     accent: "#38EE66"
   });
   const API = "/.netlify/functions/partners";
+
+  // Surface the real server error. A crashed function returns HTML, not JSON,
+  // so fall back to the raw text instead of showing a useless "unknown".
   const call = async payload => {
-    const res = await fetch(API, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        ...payload,
-        pin
-      })
-    });
+    let res;
+    try {
+      res = await fetch(API, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          ...payload,
+          pin
+        })
+      });
+    } catch (e) {
+      return {
+        ok: false,
+        data: {
+          error: "Could not reach the server"
+        }
+      };
+    }
+    const raw = await res.text();
+    let data;
+    try {
+      data = JSON.parse(raw);
+    } catch (e) {
+      data = {
+        error: "Server returned " + res.status + " — " + raw.slice(0, 120).replace(/<[^>]*>/g, " ").trim()
+      };
+    }
     return {
       ok: res.ok,
-      data: await res.json().catch(() => ({}))
+      data
     };
   };
   const load = async () => {
@@ -1887,7 +1909,7 @@ function AdminPage({
     });
     setBusy(false);
     if (!ok) {
-      setMsg(data.error === "bad pin" ? "Wrong PIN" : "Error: " + (data.error || "unknown"));
+      setMsg(data.error === "bad pin" ? "Wrong PIN" : data.detail ? data.error + " — " + data.detail : "Error: " + (data.error || "unknown"));
       return false;
     }
     setPartners(data.partners || []);
