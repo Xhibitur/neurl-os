@@ -86,6 +86,23 @@ export default async (req) => {
     return json(200, { ok: true, partner: rec, url: "https://neurl-os.com/?p=" + slug });
   }
 
+  if (body.action === "emails") {
+    let emails;
+    try {
+      emails = getStore("neurl-emails");
+    } catch (e) {
+      return json(500, { error: "blobs unavailable", detail: e.message || String(e) });
+    }
+    const { blobs } = await emails.list();
+    const out = [];
+    for (const b of blobs) {
+      const rec = await emails.get(b.key, { type: "json" });
+      if (rec) out.push(rec);
+    }
+    out.sort((a, b) => String(b.optedInAt || "").localeCompare(String(a.optedInAt || "")));
+    return json(200, { emails: out });
+  }
+
   if (body.action === "delete") {
     const slug = cleanSlug(body.slug);
     if (!slug) return json(400, { error: "slug required" });
