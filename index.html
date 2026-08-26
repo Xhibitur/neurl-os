@@ -344,6 +344,11 @@ window.NEURL_ADMIN = false;
   try {
     var q = new URLSearchParams(location.search);
     window.NEURL_ADMIN = q.has("admin");
+    var gid = (q.get("g") || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 24);
+    if (gid) {
+      window.NEURL_GROUP_ID = gid;
+      neurlLog("group_invite_open");
+    }
     var slug = (q.get("p") || "").toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 40);
     if (slug) {
       window.NEURL_PARTNER_SLUG = slug;
@@ -1221,7 +1226,8 @@ async function loadState() {
       user: s.user || null,
       profile: s.profile || {},
       activeCommitment: s.activeCommitment || null,
-      daily: s.daily || []
+      daily: s.daily || [],
+      group: s.group || null
     };
   } catch {
     return {
@@ -1229,7 +1235,8 @@ async function loadState() {
       user: null,
       profile: {},
       activeCommitment: null,
-      daily: []
+      daily: [],
+      group: null
     };
   }
 }
@@ -3135,6 +3142,311 @@ function DailyCheckin({
     }
   }, "Your NEURL Score still updates weekly."));
 }
+
+/* ---------- group leaderboard ---------- */
+
+const LB_API = "/.netlify/functions/leaderboard";
+const INACTIVE_DAYS = 14;
+function newGroupId() {
+  return Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 6);
+}
+function myMemberId() {
+  try {
+    let id = localStorage.getItem("neurl:member");
+    if (!id) {
+      id = Math.random().toString(36).slice(2, 12);
+      localStorage.setItem("neurl:member", id);
+    }
+    return id;
+  } catch (e) {
+    return "anon" + Math.random().toString(36).slice(2, 8);
+  }
+}
+function daysSince(iso) {
+  if (!iso) return 999;
+  return (Date.now() - new Date(iso).getTime()) / 86400000;
+}
+
+/* Post the latest score to the group. Called after each calibration. */
+async function pushScoreToGroup(group, user, score) {
+  if (!group || !group.id || !group.optedIn || !user) return null;
+  try {
+    const res = await fetch(LB_API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        action: "submit",
+        groupId: group.id,
+        memberId: myMemberId(),
+        name: user.name,
+        email: user.email,
+        score: score
+      })
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (e) {
+    return null;
+  }
+}
+function Leaderboard({
+  group,
+  user,
+  latestScore,
+  onJoin,
+  onLeave,
+  onRequireLogin
+}) {
+  const [board, setBoard] = useState(null);
+  const [status, setStatus] = useState("idle");
+  const [error, setError] = useState("");
+  const groupId = group && group.id;
+  const joined = !!(group && group.optedIn);
+  const load = async id => {
+    if (!id) return;
+    setStatus("loading");
+    try {
+      const res = await fetch(LB_API + "?g=" + encodeURIComponent(id));
+      if (res.status === 404) {
+        setBoard({
+          members: [],
+          count: 0
+        });
+        setStatus("idle");
+        return;
+      }
+      if (!res.ok) throw new Error("Could not load the leaderboard");
+      setBoard(await res.json());
+      setStatus("idle");
+    } catch (e) {
+      setError(e.message);
+      setStatus("idle");
+    }
+  };
+  useEffect(() => {
+    if (joined && groupId) load(groupId);
+  }, [joined, groupId]);
+
+  // --- not in a group yet ---
+  if (!groupId) return null;
+
+  // --- in a group but hasn't opted in ---
+  if (!joined) {
+    return /*#__PURE__*/React.createElement("div", {
+      className: "card",
+      style: {
+        marginTop: 16,
+        marginBottom: 16,
+        borderColor: "rgba(56,238,102,0.35)"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "eyebrow",
+      style: {
+        color: "#38EE66"
+      }
+    }, "You've been invited to a group"), /*#__PURE__*/React.createElement("p", {
+      className: "card-p",
+      style: {
+        marginTop: 8,
+        marginBottom: 6
+      }
+    }, "Compare your weekly NEURL Score with the people who invited you."), /*#__PURE__*/React.createElement("p", {
+      className: "fine",
+      style: {
+        marginTop: 0,
+        marginBottom: 16
+      }
+    }, "If you join, everyone in the group can see ", /*#__PURE__*/React.createElement("strong", null, "the name you log in with and your weekly score"), " — nothing else. Your answers stay private. You can leave at any time."), /*#__PURE__*/React.createElement("button", {
+      className: "btn-primary",
+      style: {
+        width: "100%"
+      },
+      onClick: () => {
+        if (!user) {
+          onRequireLogin();
+          return;
+        }
+        onJoin();
+      }
+    }, user ? "Join the group" : "Log in to join"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-secondary",
+      style: {
+        width: "100%",
+        marginTop: 10
+      },
+      onClick: onLeave
+    }, "No thanks"));
+  }
+  const me = myMemberId();
+  const members = board && board.members || [];
+  const medals = ["🥇", "🥈", "🥉"];
+  return /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      marginTop: 16,
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow"
+  }, "Your group"), /*#__PURE__*/React.createElement("p", {
+    className: "fine",
+    style: {
+      marginTop: 6,
+      marginBottom: 14
+    }
+  }, members.length === 1 ? "You're first in. Share the link below to add people." : members.length + " people · updates when each person calibrates"), status === "loading" && /*#__PURE__*/React.createElement("p", {
+    className: "fine"
+  }, "Loading…"), error && /*#__PURE__*/React.createElement("p", {
+    className: "fine",
+    style: {
+      color: "#FF9F9F"
+    }
+  }, error), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "rgba(0,0,0,0.25)",
+      borderRadius: 10,
+      padding: 12,
+      marginBottom: 14
+    }
+  }, members.length === 0 && /*#__PURE__*/React.createElement("p", {
+    className: "fine",
+    style: {
+      margin: 0
+    }
+  }, "No scores yet."), members.map((m, i) => {
+    const stale = daysSince(m.lastUpdated) > INACTIVE_DAYS;
+    const isMe = m.memberId === me;
+    return /*#__PURE__*/React.createElement("div", {
+      key: m.memberId,
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        fontSize: 13,
+        padding: "7px 0",
+        borderBottom: i === members.length - 1 ? "none" : "1px solid rgba(255,255,255,0.08)",
+        opacity: stale ? 0.38 : 1
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 18,
+        flexShrink: 0
+      }
+    }, !stale && i < 3 ? medals[i] : ""), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontWeight: isMe ? 700 : 400,
+        color: isMe ? "#F2F4F7" : "#B0B9C6",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap"
+      }
+    }, m.name, isMe ? " (you)" : ""), stale && /*#__PURE__*/React.createElement("span", {
+      className: "fine",
+      style: {
+        margin: 0,
+        fontSize: 10
+      }
+    }, "inactive")), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontWeight: 700,
+        color: stale ? "#8B93A1" : chargeColor(m.score),
+        flexShrink: 0
+      }
+    }, m.score));
+  })), /*#__PURE__*/React.createElement("p", {
+    className: "fine",
+    style: {
+      marginTop: 0,
+      marginBottom: 14
+    }
+  }, "Greyed-out members haven't calibrated in ", INACTIVE_DAYS, " days."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 10,
+      flexWrap: "wrap"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn-primary",
+    style: {
+      flex: "1 1 150px"
+    },
+    onClick: () => {
+      const link = "https://neurl-os.com/?g=" + groupId;
+      const text = "My NEURL Score this week: " + (latestScore != null ? latestScore : "") + "% ⚡ Join my group: " + link;
+      try {
+        if (navigator.share) navigator.share({
+          text: text
+        });else navigator.clipboard.writeText(text);
+      } catch (e) {}
+      try {
+        if (window.gtag) gtag("event", "leaderboard_invite");
+      } catch (e) {}
+    }
+  }, "Invite people"), /*#__PURE__*/React.createElement("button", {
+    className: "btn-secondary",
+    style: {
+      flex: "1 1 110px"
+    },
+    onClick: () => load(groupId)
+  }, "Refresh"), /*#__PURE__*/React.createElement("button", {
+    className: "btn-secondary",
+    style: {
+      flex: "1 1 110px"
+    },
+    onClick: onLeave
+  }, "Leave")));
+}
+
+/* Shown when the user isn't in any group yet — creates one. */
+function StartGroupCard({
+  user,
+  latestScore,
+  onCreate,
+  onRequireLogin
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      marginTop: 16,
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow"
+  }, "Compare with your people"), /*#__PURE__*/React.createElement("p", {
+    className: "card-p",
+    style: {
+      marginTop: 8,
+      marginBottom: 6
+    }
+  }, "Start a private group and invite friends, teammates, or your gym."), /*#__PURE__*/React.createElement("p", {
+    className: "fine",
+    style: {
+      marginTop: 0,
+      marginBottom: 16
+    }
+  }, "Everyone who joins sees each other's name and weekly score — nothing else. Log in first so your score has a name on it."), /*#__PURE__*/React.createElement("button", {
+    className: "btn-primary",
+    style: {
+      width: "100%"
+    },
+    onClick: () => {
+      if (!user) {
+        onRequireLogin();
+        return;
+      }
+      onCreate();
+    }
+  }, user ? "Create my group" : "Log in to start a group"));
+}
 function App() {
   const [view, setView] = useState("loading");
   const [state, setState] = useState({
@@ -3142,7 +3454,8 @@ function App() {
     user: null,
     profile: {},
     activeCommitment: null,
-    daily: []
+    daily: [],
+    group: null
   });
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({
@@ -3151,6 +3464,7 @@ function App() {
   const [commitmentChoice, setCommitmentChoice] = useState(null);
   const [prefillCount, setPrefillCount] = useState(0);
   const [partner, setPartner] = useState(null);
+  const [group, setGroup] = useState(null);
   const [showAdmin, setShowAdmin] = useState(() => !!window.NEURL_ADMIN);
   const [lastCheckInDate, setLastCheckInDate] = useState(null);
   const [dir, setDir] = useState(1);
@@ -3158,6 +3472,19 @@ function App() {
   useEffect(() => {
     loadState().then(s => {
       setState(s);
+      const invited = window.NEURL_GROUP_ID;
+      if (s.group && s.group.id) {
+        // An invite link for a different group replaces the stored one.
+        if (invited && invited !== s.group.id) setGroup({
+          id: invited,
+          optedIn: false
+        });else setGroup(s.group);
+      } else if (invited) {
+        setGroup({
+          id: invited,
+          optedIn: false
+        });
+      }
       if (window.NEURL_PARTNER_SLUG && !s.history.length) {
         setView("partner");
         if (window.neurlLoadPartner) {
@@ -3276,6 +3603,10 @@ function App() {
     setCommitmentChoice(null);
     setView("reveal");
     await saveState(nextState);
+    // Keep the group leaderboard current with this week's score.
+    if (group && group.optedIn && nextState.user) {
+      pushScoreToGroup(group, nextState.user, entry.charge);
+    }
   };
   const commitToIntervention = async interventionName => {
     const entry = state.history[state.history.length - 1];
@@ -3339,6 +3670,62 @@ function App() {
     setState(nextState);
     await saveState(nextState);
     setView("checkin");
+  };
+  const persistGroup = async next => {
+    setGroup(next);
+    const nextState = {
+      ...state,
+      group: next
+    };
+    setState(nextState);
+    await saveState(nextState);
+  };
+  const joinGroup = async () => {
+    if (!state.user || !group) return;
+    const next = {
+      ...group,
+      optedIn: true
+    };
+    await persistGroup(next);
+    const last = state.history.length ? state.history[state.history.length - 1] : null;
+    if (last) await pushScoreToGroup(next, state.user, last.charge);
+    try {
+      if (window.gtag) gtag("event", "leaderboard_join");
+    } catch (e) {}
+  };
+  const createGroup = async () => {
+    if (!state.user) return;
+    const next = {
+      id: newGroupId(),
+      optedIn: true
+    };
+    await persistGroup(next);
+    const last = state.history.length ? state.history[state.history.length - 1] : null;
+    if (last) await pushScoreToGroup(next, state.user, last.charge);
+    try {
+      if (window.gtag) gtag("event", "leaderboard_create");
+    } catch (e) {}
+  };
+  const leaveGroup = async () => {
+    if (group && group.optedIn && group.id) {
+      try {
+        await fetch(LB_API, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            action: "leave",
+            groupId: group.id,
+            memberId: myMemberId()
+          })
+        });
+      } catch (e) {}
+    }
+    await persistGroup(null);
+    try {
+      history.replaceState(null, "", "/");
+    } catch (e) {}
   };
   const saveDaily = async entry => {
     const today = dayKey(new Date());
@@ -4341,9 +4728,45 @@ function App() {
   }), /*#__PURE__*/React.createElement(CalendarHold, {
     charge: latest.charge,
     projected: forecast ? forecast.projected : null
-  }), /*#__PURE__*/React.createElement(InstallPrompt, null), /*#__PURE__*/React.createElement(DailyCard, {
+  }), /*#__PURE__*/React.createElement(InstallPrompt, null), group ? /*#__PURE__*/React.createElement(Leaderboard, {
+    group: group,
+    user: state.user,
+    latestScore: latest.charge,
+    onJoin: joinGroup,
+    onLeave: leaveGroup,
+    onRequireLogin: () => {
+      setLoginReturn("reveal");
+      setView("login");
+    }
+  }) : /*#__PURE__*/React.createElement(StartGroupCard, {
+    user: state.user,
+    latestScore: latest.charge,
+    onCreate: createGroup,
+    onRequireLogin: () => {
+      setLoginReturn("reveal");
+      setView("login");
+    }
+  }), /*#__PURE__*/React.createElement(DailyCard, {
     daily: state.daily,
     onStart: () => setView("daily")
+  }), group ? /*#__PURE__*/React.createElement(Leaderboard, {
+    group: group,
+    user: state.user,
+    latestScore: latest.charge,
+    onJoin: joinGroup,
+    onLeave: leaveGroup,
+    onRequireLogin: () => {
+      setLoginReturn("today");
+      setView("login");
+    }
+  }) : /*#__PURE__*/React.createElement(StartGroupCard, {
+    user: state.user,
+    latestScore: latest.charge,
+    onCreate: createGroup,
+    onRequireLogin: () => {
+      setLoginReturn("today");
+      setView("login");
+    }
   }), latest.subscores && /*#__PURE__*/React.createElement("div", {
     className: "card",
     style: {
