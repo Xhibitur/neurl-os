@@ -35,6 +35,30 @@ export default async (req) => {
     return json(500, { error: "blobs unavailable", detail: e.message || String(e) });
   }
 
+  // ---- email opt-in (no push subscription involved) ----
+  if (body.action === "optin") {
+    const email = String(body.email || "").trim().toLowerCase().slice(0, 160);
+    if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      return json(400, { error: "valid email required" });
+    }
+    let emails;
+    try {
+      emails = getStore("neurl-emails");
+    } catch (e) {
+      return json(500, { error: "blobs unavailable", detail: e.message || String(e) });
+    }
+    const id = Buffer.from(email).toString("base64url").slice(0, 100);
+    const existing = await emails.get(id, { type: "json" });
+    await emails.setJSON(id, {
+      email,
+      name: String(body.name || "").slice(0, 80),
+      partner: body.partner ? String(body.partner).slice(0, 40) : null,
+      optedInAt: existing ? existing.optedInAt : new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+    return json(200, { ok: true });
+  }
+
   const key = keyFor(body.subscription);
   if (!key) return json(400, { error: "missing subscription" });
 
