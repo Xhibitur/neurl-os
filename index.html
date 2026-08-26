@@ -1604,53 +1604,6 @@ function shareText(charge, best) {
   const st = stateOf(charge);
   return `My NEURL Score this week: ${charge}% ⚡\n` + `Operating in ${st.name} mode.\n\n` + `NEURL OS is an AI-powered performance intelligence system.\n` + `Weekly calibration → Predictive NEURL Score → Performance optimization.\n` + `Track what matters: productivity, focus, capacity, resilience.\n\n` + `2-minute weekly calibration. See how you compare to your peers.\n` + `Join at https://neurl-os.com`;
 }
-function ShareCard({
-  charge,
-  best
-}) {
-  const [copied, setCopied] = useState(false);
-  const text = shareText(charge, best);
-  const shareViaText = () => {
-    const msg = encodeURIComponent(text);
-    window.location.href = `sms:?body=${msg}`;
-  };
-  const shareViaEmail = () => {
-    const mailto = `mailto:?subject=${encodeURIComponent(`My NEURL Score this week: ${charge}% ⚡`)}&body=${encodeURIComponent(text)}`;
-    window.location.href = mailto;
-  };
-  const copyInvite = async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    } catch {/* clipboard unavailable */}
-  };
-  return /*#__PURE__*/React.createElement("div", {
-    className: "card center-text"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "eyebrow"
-  }, "Performance Leaderboard"), /*#__PURE__*/React.createElement("p", {
-    className: "card-p"
-  }, "High performers thrive on accountability. Share your NEURL Score with peers, teams, and friends. Weekly rankings. Monthly improvement streaks. Push each other higher."), /*#__PURE__*/React.createElement("div", {
-    className: "share-row"
-  }, /*#__PURE__*/React.createElement("button", {
-    className: "btn-primary share-btn",
-    onClick: shareViaText
-  }, "Share via Text"), /*#__PURE__*/React.createElement("button", {
-    className: "btn-secondary share-btn",
-    onClick: shareViaEmail
-  }, "Share via Email"), /*#__PURE__*/React.createElement("button", {
-    className: "btn-secondary share-btn",
-    onClick: copyInvite
-  }, copied ? "Copied ✓" : "Copy Link")), copied && /*#__PURE__*/React.createElement("p", {
-    className: "fine",
-    style: {
-      marginTop: 12,
-      color: "var(--ink)",
-      opacity: 1
-    }
-  }, "Paste into any message to share your NEURL Score"));
-}
 
 /* ---------- commitment tracking ---------- */
 
@@ -1867,6 +1820,8 @@ function AdminPage({
     logoUrl: "",
     accent: "#38EE66"
   });
+  const [tab, setTab] = useState("partners");
+  const [emails, setEmails] = useState([]);
   const API = "/.netlify/functions/partners";
 
   // Surface the real server error. A crashed function returns HTML, not JSON,
@@ -1923,6 +1878,42 @@ function AdminPage({
     setAuthed(true);
     setMsg("");
     return true;
+  };
+  const loadEmails = async () => {
+    setBusy(true);
+    const {
+      ok,
+      data
+    } = await call({
+      action: "emails"
+    });
+    setBusy(false);
+    if (!ok) {
+      setMsg("Error: " + (data.error || "unknown"));
+      return;
+    }
+    setEmails(data.emails || []);
+  };
+  const copyEmails = () => {
+    try {
+      navigator.clipboard.writeText(emails.map(e => e.email).join(", "));
+      setMsg("Copied " + emails.length + " addresses");
+    } catch (e) {}
+  };
+  const downloadCsv = () => {
+    const rows = [["email", "name", "partner", "opted_in"]].concat(emails.map(e => [e.email, e.name || "", e.partner || "", (e.optedInAt || "").slice(0, 10)]));
+    const csv = rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(",")).join("\n");
+    const blob = new Blob([csv], {
+      type: "text/csv;charset=utf-8"
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "neurl-os-emails.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
   };
   const save = async () => {
     if (!form.name.trim()) {
@@ -2080,6 +2071,102 @@ function AdminPage({
     className: "btn-secondary",
     onClick: onExit
   }, "Exit")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      marginBottom: 20
+    }
+  }, [["partners", "Partner pages"], ["emails", "Emails"]].map(([id, label]) => /*#__PURE__*/React.createElement("button", {
+    key: id,
+    onClick: () => {
+      setTab(id);
+      setMsg("");
+      if (id === "emails") loadEmails();
+    },
+    style: {
+      flex: 1,
+      padding: "10px 12px",
+      borderRadius: 10,
+      cursor: "pointer",
+      font: "inherit",
+      fontSize: 14,
+      fontWeight: tab === id ? 700 : 400,
+      background: tab === id ? "rgba(56,238,102,0.12)" : "rgba(255,255,255,0.03)",
+      border: "1px solid " + (tab === id ? "#38EE66" : "rgba(255,255,255,0.10)"),
+      color: tab === id ? "#38EE66" : "#8B93A1"
+    }
+  }, label))), tab === "emails" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow",
+    style: {
+      marginBottom: 8
+    }
+  }, "Opted-in emails (", emails.length, ")"), /*#__PURE__*/React.createElement("p", {
+    className: "fine",
+    style: {
+      marginTop: 0,
+      marginBottom: 16
+    }
+  }, "Everyone here ticked the consent box at login. Anyone who didn't never left their device."), msg && /*#__PURE__*/React.createElement("p", {
+    className: "fine",
+    style: {
+      color: msg.startsWith("Copied") ? "#38EE66" : "#FF9F9F"
+    }
+  }, msg), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 10,
+      flexWrap: "wrap"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn-primary",
+    style: {
+      flex: "1 1 130px"
+    },
+    disabled: !emails.length,
+    onClick: copyEmails
+  }, "Copy all"), /*#__PURE__*/React.createElement("button", {
+    className: "btn-secondary",
+    style: {
+      flex: "1 1 130px"
+    },
+    disabled: !emails.length,
+    onClick: downloadCsv
+  }, "Download CSV"), /*#__PURE__*/React.createElement("button", {
+    className: "btn-secondary",
+    style: {
+      flex: "1 1 110px"
+    },
+    disabled: busy,
+    onClick: loadEmails
+  }, busy ? "…" : "Refresh"))), emails.length === 0 && /*#__PURE__*/React.createElement("p", {
+    className: "fine"
+  }, "No opt-ins yet."), emails.map(e => /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    key: e.email,
+    style: {
+      marginBottom: 10,
+      padding: 14
+    }
+  }, /*#__PURE__*/React.createElement("p", {
+    className: "card-p",
+    style: {
+      margin: 0,
+      fontWeight: 600,
+      wordBreak: "break-all",
+      fontSize: 14
+    }
+  }, e.email), /*#__PURE__*/React.createElement("p", {
+    className: "fine",
+    style: {
+      marginTop: 5,
+      marginBottom: 0
+    }
+  }, e.name || "—", e.partner ? " · via " + e.partner : "", e.optedInAt ? " · " + e.optedInAt.slice(0, 10) : "")))), tab === "partners" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     className: "card",
     style: {
       marginBottom: 22
@@ -2151,7 +2238,7 @@ function AdminPage({
       flex: "1 1 100px"
     },
     onClick: () => remove(p.slug)
-  }, "Delete")))));
+  }, "Delete"))))));
 }
 
 /* ---------- calendar hold: daily 7pm + weekly Sunday ---------- */
@@ -3406,34 +3493,110 @@ function Leaderboard({
   }, "Leave")));
 }
 
-/* Shown when the user isn't in any group yet — creates one. */
+/* Empty state: show the board rather than describe it. Seeing your own score
+   sitting in a ranked list is what makes someone want to fill the other rows. */
 function StartGroupCard({
   user,
   latestScore,
   onCreate,
   onRequireLogin
 }) {
+  const score = typeof latestScore === "number" ? latestScore : 72;
+
+  // A plausible sample board with the user's real score placed in rank order.
+  const sample = [{
+    name: "Your friend",
+    score: Math.min(99, score + 8),
+    ghost: true
+  }, {
+    name: "You",
+    score: score,
+    ghost: false
+  }, {
+    name: "Your teammate",
+    score: Math.max(1, score - 6),
+    ghost: true
+  }, {
+    name: "Your trainer",
+    score: Math.max(1, score - 13),
+    ghost: true
+  }].sort((a, b) => b.score - a.score);
+  const medals = ["🥇", "🥈", "🥉"];
   return /*#__PURE__*/React.createElement("div", {
     className: "card",
     style: {
       marginTop: 16,
-      marginBottom: 16
+      marginBottom: 16,
+      borderColor: "rgba(56,238,102,0.35)"
     }
   }, /*#__PURE__*/React.createElement("div", {
-    className: "eyebrow"
-  }, "Compare with your people"), /*#__PURE__*/React.createElement("p", {
+    className: "eyebrow",
+    style: {
+      color: "#38EE66"
+    }
+  }, "Leaderboard"), /*#__PURE__*/React.createElement("p", {
     className: "card-p",
     style: {
       marginTop: 8,
-      marginBottom: 6
+      marginBottom: 6,
+      fontSize: 16,
+      fontWeight: 600
     }
-  }, "Start a private group and invite friends, teammates, or your gym."), /*#__PURE__*/React.createElement("p", {
+  }, "A score is more interesting next to someone else's."), /*#__PURE__*/React.createElement("p", {
     className: "fine",
     style: {
       marginTop: 0,
       marginBottom: 16
     }
-  }, "Everyone who joins sees each other's name and weekly score — nothing else. Log in first so your score has a name on it."), /*#__PURE__*/React.createElement("button", {
+  }, "Start a private group and invite whoever you train, work, or compete with."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "rgba(0,0,0,0.28)",
+      borderRadius: 10,
+      padding: 12,
+      marginBottom: 8,
+      position: "relative",
+      overflow: "hidden"
+    }
+  }, sample.map((m, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      fontSize: 13,
+      padding: "7px 0",
+      borderBottom: i === sample.length - 1 ? "none" : "1px solid rgba(255,255,255,0.07)",
+      opacity: m.ghost ? 0.32 : 1
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 18
+    }
+  }, i < 3 ? medals[i] : ""), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: m.ghost ? 400 : 700,
+      color: m.ghost ? "#8B93A1" : "#F2F4F7"
+    }
+  }, m.name, m.ghost ? "" : " (you)")), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: 700,
+      color: m.ghost ? "#5A626E" : chargeColor(m.score)
+    }
+  }, m.ghost ? "––" : m.score)))), /*#__PURE__*/React.createElement("p", {
+    className: "fine",
+    style: {
+      marginTop: 0,
+      marginBottom: 16,
+      textAlign: "center",
+      fontSize: 11
+    }
+  }, "Their scores appear once they join."), /*#__PURE__*/React.createElement("button", {
     className: "btn-primary",
     style: {
       width: "100%"
@@ -3445,7 +3608,14 @@ function StartGroupCard({
       }
       onCreate();
     }
-  }, user ? "Create my group" : "Log in to start a group"));
+  }, user ? "Create my group" : "Log in to start a group"), /*#__PURE__*/React.createElement("p", {
+    className: "fine",
+    style: {
+      marginTop: 12,
+      marginBottom: 0,
+      textAlign: "center"
+    }
+  }, "Members see each other's name and weekly score — nothing else."));
 }
 function App() {
   const [view, setView] = useState("loading");
@@ -3463,6 +3633,7 @@ function App() {
   });
   const [commitmentChoice, setCommitmentChoice] = useState(null);
   const [prefillCount, setPrefillCount] = useState(0);
+  const [emailConsent, setEmailConsent] = useState(false);
   const [partner, setPartner] = useState(null);
   const [group, setGroup] = useState(null);
   const [showAdmin, setShowAdmin] = useState(() => !!window.NEURL_ADMIN);
@@ -3519,6 +3690,24 @@ function App() {
   };
   const doLogin = async () => {
     if (!loginName.trim() || !loginEmail.trim()) return;
+    // Only leaves the device if the user explicitly ticked the box.
+    if (emailConsent) {
+      try {
+        fetch("/.netlify/functions/subscribe", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            action: "optin",
+            email: loginEmail.trim(),
+            name: loginName.trim(),
+            partner: window.NEURL_PARTNER_SLUG || null
+          })
+        }).catch(() => {});
+        neurlLog("email_optin");
+      } catch (e) {}
+    }
     const nextState = {
       ...state,
       user: {
@@ -4482,7 +4671,34 @@ function App() {
     value: loginEmail,
     onChange: e => setLoginEmail(e.target.value),
     onKeyDown: e => e.key === "Enter" && doLogin()
-  }), /*#__PURE__*/React.createElement("button", {
+  }), /*#__PURE__*/React.createElement("label", {
+    style: {
+      display: "flex",
+      alignItems: "flex-start",
+      gap: 10,
+      marginTop: 18,
+      textAlign: "left",
+      cursor: "pointer"
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "checkbox",
+    checked: emailConsent,
+    onChange: e => setEmailConsent(e.target.checked),
+    style: {
+      marginTop: 3,
+      width: 18,
+      height: 18,
+      accentColor: "#38EE66",
+      flexShrink: 0
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "fine",
+    style: {
+      margin: 0,
+      textAlign: "left",
+      lineHeight: 1.5
+    }
+  }, "Email me occasional updates and offers from NEURL-OS and its partners. Optional — you can reply to any message to stop. We never sell your address.")), /*#__PURE__*/React.createElement("button", {
     className: "btn-primary wide",
     style: {
       marginTop: 20
@@ -4749,24 +4965,6 @@ function App() {
   }), /*#__PURE__*/React.createElement(DailyCard, {
     daily: state.daily,
     onStart: () => setView("daily")
-  }), group ? /*#__PURE__*/React.createElement(Leaderboard, {
-    group: group,
-    user: state.user,
-    latestScore: latest.charge,
-    onJoin: joinGroup,
-    onLeave: leaveGroup,
-    onRequireLogin: () => {
-      setLoginReturn("today");
-      setView("login");
-    }
-  }) : /*#__PURE__*/React.createElement(StartGroupCard, {
-    user: state.user,
-    latestScore: latest.charge,
-    onCreate: createGroup,
-    onRequireLogin: () => {
-      setLoginReturn("today");
-      setView("login");
-    }
   }), latest.subscores && /*#__PURE__*/React.createElement("div", {
     className: "card",
     style: {
@@ -4856,10 +5054,7 @@ function App() {
     style: {
       marginTop: 32
     }
-  }, "Next steps"), /*#__PURE__*/React.createElement(ShareCard, {
-    charge: latest.charge,
-    best: best
-  }), /*#__PURE__*/React.createElement("button", {
+  }, "Next steps"), /*#__PURE__*/React.createElement("button", {
     className: "btn-primary",
     onClick: () => setView("today"),
     style: {
@@ -4915,6 +5110,24 @@ function App() {
   }), /*#__PURE__*/React.createElement(DailyCard, {
     daily: state.daily,
     onStart: () => setView("daily")
+  }), group ? /*#__PURE__*/React.createElement(Leaderboard, {
+    group: group,
+    user: state.user,
+    latestScore: latest.charge,
+    onJoin: joinGroup,
+    onLeave: leaveGroup,
+    onRequireLogin: () => {
+      setLoginReturn("today");
+      setView("login");
+    }
+  }) : /*#__PURE__*/React.createElement(StartGroupCard, {
+    user: state.user,
+    latestScore: latest.charge,
+    onCreate: createGroup,
+    onRequireLogin: () => {
+      setLoginReturn("today");
+      setView("login");
+    }
   }), /*#__PURE__*/React.createElement("div", {
     className: "center-col",
     style: {
@@ -5111,10 +5324,7 @@ function App() {
   }, "Performance history"), /*#__PURE__*/React.createElement(HistoryTrend, {
     history: state.history,
     avg: avg
-  })), /*#__PURE__*/React.createElement(ShareCard, {
-    charge: latest.charge,
-    best: best
-  }), /*#__PURE__*/React.createElement("div", {
+  })), /*#__PURE__*/React.createElement("div", {
     className: "card center-text"
   }, dueIn > 0 ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     className: "eyebrow"
