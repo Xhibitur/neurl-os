@@ -1227,7 +1227,8 @@ async function loadState() {
       profile: s.profile || {},
       activeCommitment: s.activeCommitment || null,
       daily: s.daily || [],
-      group: s.group || null
+      group: s.group || null,
+      partnerSlug: s.partnerSlug || null
     };
   } catch {
     return {
@@ -1236,7 +1237,8 @@ async function loadState() {
       profile: {},
       activeCommitment: null,
       daily: [],
-      group: null
+      group: null,
+      partnerSlug: null
     };
   }
 }
@@ -3625,7 +3627,8 @@ function App() {
     profile: {},
     activeCommitment: null,
     daily: [],
-    group: null
+    group: null,
+    partnerSlug: null
   });
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({
@@ -3656,17 +3659,35 @@ function App() {
           optedIn: false
         });
       }
-      if (window.NEURL_PARTNER_SLUG && !s.history.length) {
-        setView("partner");
+      const linkSlug = window.NEURL_PARTNER_SLUG;
+      const savedSlug = s.partnerSlug || null;
+      const slug = linkSlug || savedSlug;
+
+      // Arriving fresh from a partner link shows the co-branded intro first.
+      const showIntro = !!linkSlug && !s.history.length;
+      setView(showIntro ? "partner" : s.history.length ? "today" : "welcome");
+      if (slug) {
+        window.NEURL_PARTNER_SLUG = slug;
         if (window.neurlLoadPartner) {
           window.neurlLoadPartner().then(p => {
-            if (p && p.active !== false) setPartner(p);else setView("welcome");
+            if (p && p.active !== false) {
+              setPartner(p);
+              // persist so the branding survives future visits
+              if (s.partnerSlug !== slug) {
+                const withPartner = {
+                  ...s,
+                  partnerSlug: slug
+                };
+                setState(withPartner);
+                saveState(withPartner);
+              }
+            } else if (showIntro) {
+              setView("welcome");
+            }
           });
-        } else {
+        } else if (showIntro) {
           setView("welcome");
         }
-      } else {
-        setView(s.history.length ? "today" : "welcome");
       }
     });
   }, []);
@@ -4724,7 +4745,7 @@ function App() {
     onStart: startCheckin
   }) : /*#__PURE__*/React.createElement("div", {
     className: "loading-dot"
-  })), view === "daily" && /*#__PURE__*/React.createElement(DailyCheckin, {
+  })), !showAdmin && view === "daily" && /*#__PURE__*/React.createElement(DailyCheckin, {
     daily: state.daily,
     onSave: saveDaily,
     onCancel: () => setView(state.history.length ? "today" : "welcome")
