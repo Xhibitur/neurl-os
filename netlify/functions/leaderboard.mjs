@@ -31,7 +31,13 @@ function publicView(group) {
       lastUpdated: m.lastUpdated
     }))
     .sort((a, b) => (b.score || 0) - (a.score || 0));
-  return { groupId: group.groupId, name: group.name || null, members, count: members.length };
+  return {
+    groupId: group.groupId,
+    name: group.name || null,
+    members,
+    count: members.length,
+    snapshots: group.snapshots || []
+  };
 }
 
 export default async (req) => {
@@ -87,6 +93,18 @@ export default async (req) => {
 
   const emailHash = body.email ? hashEmail(body.email) : null;
 
+  // Six-dimension breakdown, used only for team-level averages.
+  const DIMS = ["Sleep", "Workload", "Movement", "Stress", "Attention", "Fuel"];
+  let subscores = null;
+  if (body.subscores && typeof body.subscores === "object") {
+    subscores = {};
+    for (const d of DIMS) {
+      const v = Number(body.subscores[d]);
+      if (Number.isFinite(v) && v >= 0 && v <= 100) subscores[d] = Math.round(v);
+    }
+    if (Object.keys(subscores).length === 0) subscores = null;
+  }
+
   let group = await store.get(groupId, { type: "json" });
   if (!group) {
     group = {
@@ -106,13 +124,37 @@ export default async (req) => {
   if (idx === -1) idx = members.findIndex((m) => m.memberId === memberId);
 
   if (idx >= 0) {
-    members[idx] = { ...members[idx], memberId, name, score, emailHash, lastUpdated: now };
+    members[idx] = { ...members[idx], memberId, name, score, emailHash, subscores, lastUpdated: now };
   } else {
     if (members.length >= MAX_MEMBERS) return json(409, { error: "group is full" });
-    members.push({ memberId, name, score, emailHash, joinedAt: now, lastUpdated: now });
+    members.push({ memberId, name, score, emailHash, subscores, joinedAt: now, lastUpdated: now });
   }
 
   group.members = members;
+
+  // Weekly snapshot of team averages, so trends survive even though each
+  // member record only ever holds their current score.
+  const MIN_FOR_AVERAGE = 5;   // below this, an average can identify someone
+  const active = members.filter((m) => (Date.now() - new Date(m.lastUpdated).getTime()) / 86400000 <= 14);
+  if (active.length >= MIN_FOR_AVERAGE) {
+    const wk = (() => {
+      const d = new Date();
+      d.setDate(d.getDate() - ((d.getDay() + 6) % 7));   // Monday of this week
+      return d.toISOString().slice(0, 10);
+    })();
+    const avg = (arr) => Math.round(arr.reduce((s2, v) => s2 + v, 0) / arr.length);
+    const snap = { week: wk, members: active.length, score: avg(active.map((m) => m.score)) };
+    const dims = {};
+    for (const d of DIMS) {
+      const vals = active.map((m) => m.subscores && m.subscores[d]).filter((v) => Number.isFinite(v));
+      if (vals.length >= MIN_FOR_AVERAGE) dims[d] = avg(vals);
+    }
+    if (Object.keys(dims).length) snap.dimensions = dims;
+
+    group.snapshots = (group.snapshots || []).filter((s3) => s3.week !== wk);
+    group.snapshots.push(snap);
+    group.snapshots = group.snapshots.slice(-26);   // half a year
+  }
   await store.setJSON(groupId, group);
   return json(200, publicView(group));
 };
