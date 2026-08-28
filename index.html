@@ -3257,7 +3257,7 @@ function daysSince(iso) {
 }
 
 /* Post the latest score to the group. Called after each calibration. */
-async function pushScoreToGroup(group, user, score) {
+async function pushScoreToGroup(group, user, score, subscores) {
   if (!group || !group.id || !group.optedIn || !user) return null;
   try {
     const res = await fetch(LB_API, {
@@ -3271,7 +3271,8 @@ async function pushScoreToGroup(group, user, score) {
         memberId: myMemberId(),
         name: user.name,
         email: user.email,
-        score: score
+        score: score,
+        subscores: subscores || null
       })
     });
     if (!res.ok) return null;
@@ -3815,7 +3816,7 @@ function App() {
     await saveState(nextState);
     // Keep the group leaderboard current with this week's score.
     if (group && group.optedIn && nextState.user) {
-      pushScoreToGroup(group, nextState.user, entry.charge);
+      pushScoreToGroup(group, nextState.user, entry.charge, entry.subscores);
     }
   };
   const commitToIntervention = async interventionName => {
@@ -3898,7 +3899,7 @@ function App() {
     };
     await persistGroup(next);
     const last = state.history.length ? state.history[state.history.length - 1] : null;
-    if (last) await pushScoreToGroup(next, state.user, last.charge);
+    if (last) await pushScoreToGroup(next, state.user, last.charge, last.subscores);
     try {
       if (window.gtag) gtag("event", "leaderboard_join");
     } catch (e) {}
@@ -3911,7 +3912,7 @@ function App() {
     };
     await persistGroup(next);
     const last = state.history.length ? state.history[state.history.length - 1] : null;
-    if (last) await pushScoreToGroup(next, state.user, last.charge);
+    if (last) await pushScoreToGroup(next, state.user, last.charge, last.subscores);
     try {
       if (window.gtag) gtag("event", "leaderboard_create");
     } catch (e) {}
@@ -3987,30 +3988,103 @@ function App() {
     if (!latest || !latest.subscores) return null;
     const [topDim] = Object.entries(latest.subscores).sort((a, b) => b[1] - a[1])[0];
     const map = {
-      Sleep: "Your sleep foundation is strong. Use this week to tackle harder projects.",
-      Workload: "Your workload is manageable. This is your window to take on stretch assignments.",
-      Recovery: "Your recovery systems are working. You can sustain more load this week.",
-      Emotional: "Your emotional resilience is high. If there's a hard conversation to have, this is the week.",
-      Focus: "Your focus is sharp. Block deep-work time and ship your best work.",
-      Nutrition: "Your nutrition is solid. Your sustained energy will support high performance."
+      Sleep: "Your sleep is holding up. Use this week for the work that needs a clear head.",
+      Workload: "Your load is manageable. This is the week to take on something bigger.",
+      Movement: "Your body is recovering well. You can absorb more this week than usual.",
+      Stress: "You're carrying stress well. If there's a hard conversation waiting, have it now.",
+      Attention: "Your focus is sharp. Protect a long block and ship the thing that matters.",
+      Fuel: "You're eating and drinking consistently. Expect steady energy through the afternoons."
     };
-    return map[topDim];
+    return map[topDim] || "Your strongest area is " + topDim + ". Lean on it this week.";
   }, [latest]);
   const risk = useMemo(() => {
     if (!latest || !forecast) return null;
     const map = {
-      Sleep: "Sleep debt may cut afternoon output. Guard tonight's window.",
-      Workload: "Structural workload may compress recovery. Watch the evening spillover.",
-      Load: "Elevated performance load may reduce cognitive output late in the day. Install one hard stop.",
-      Screen: "Screen exposure is taxing overnight recharge. Build a shutdown buffer tonight.",
-      Recovery: "Thin recovery volume limits how much load you can absorb this week."
+      Sleep: "Sleep debt tends to show up as a flat afternoon. Guard tonight's window.",
+      Workload: "Your workload is compressing recovery. Watch for evening spillover.",
+      Movement: "Too little movement limits how much load you can absorb this week.",
+      Stress: "Stress is running high enough to cost you output. Install one hard stop.",
+      Attention: "Switching is fragmenting your day. Expect shallower work until it settles.",
+      Fuel: "Inconsistent fuel shows up as energy dips, usually mid-afternoon."
     };
-    return map[forecast.dragName];
+    return map[forecast.dragName] || "Your lowest area is " + forecast.dragName + ". Expect it to cost you this week.";
   }, [latest, forecast]);
+
+  // Extra moves per dimension so the weekly suggestion isn't the same one twice.
+  const MOVE_LIBRARY = {
+    Sleep: [{
+      title: "Set a performance-grade sleep window",
+      body: "Pick a lights-out time and hold it for seven nights, weekend included."
+    }, {
+      title: "Kill the last hour of screens",
+      body: "No screens for 60 minutes before bed. Put the phone in another room."
+    }, {
+      title: "Wake at the same time every day",
+      body: "Fixed wake time does more for sleep quality than a fixed bedtime."
+    }],
+    Workload: [{
+      title: "Delete one recurring obligation",
+      body: "Find the standing commitment you'd quietly be relieved to lose. Cancel it this week."
+    }, {
+      title: "Cap the day with a hard stop",
+      body: "Pick a finish time and end there, unfinished or not. Do it four days running."
+    }, {
+      title: "Say no to one new thing",
+      body: "The next request that arrives this week, decline it. Just one."
+    }],
+    Movement: [{
+      title: "Lock three recovery blocks",
+      body: "Three sessions in the calendar as fixed appointments. Anything counts — walking included."
+    }, {
+      title: "Walk after the hardest meeting",
+      body: "Ten minutes outside, no phone, straight after the heaviest thing in your day."
+    }, {
+      title: "Move before you work, not after",
+      body: "Front-load it. Movement that waits until evening usually doesn't happen."
+    }],
+    Stress: [{
+      title: "Install a shutdown buffer",
+      body: "Fifteen minutes between finishing work and the rest of your evening. No inputs."
+    }, {
+      title: "Name the load out loud",
+      body: "Tell one person what you're carrying this week. Naming it reliably lowers it."
+    }, {
+      title: "Close one open loop",
+      body: "Pick the unresolved thing you think about most and end it, either way."
+    }],
+    Attention: [{
+      title: "Protect one 90-minute block",
+      body: "One uninterrupted block a day. Notifications off, door shut, one task."
+    }, {
+      title: "Batch your messages",
+      body: "Twice a day only. The rest of the time, the inbox stays closed."
+    }, {
+      title: "Start the day on the hard thing",
+      body: "First 60 minutes on the work that matters, before anything else gets in."
+    }],
+    Fuel: [{
+      title: "Eat on a schedule, not on hunger",
+      body: "Three fixed times this week. Consistency beats composition for energy."
+    }, {
+      title: "Front-load your water",
+      body: "Most of your intake before 2pm. Afternoon dips are often hydration."
+    }, {
+      title: "Protect one real lunch",
+      body: "Away from the desk, four days this week. Not at the keyboard."
+    }]
+  };
   const topDrivers = useMemo(() => {
     if (!latest || !latest.subscores) return [];
     return Object.entries(latest.subscores).sort((a, b) => a[1] - b[1]).slice(0, 2);
   }, [latest]);
+
+  // Which variant of each move to show — rotates with the number of readings,
+  // so someone stuck on the same weak dimension still gets fresh suggestions.
+  const moveFor = dim => {
+    const opts = MOVE_LIBRARY[dim];
+    if (!opts) return ADJUSTMENTS[dim] || null;
+    return opts[(state.history.length || 1) % opts.length];
+  };
   return /*#__PURE__*/React.createElement("div", {
     className: "app"
   }, /*#__PURE__*/React.createElement("style", null, CSS), /*#__PURE__*/React.createElement("div", {
@@ -5059,10 +5133,10 @@ function App() {
   }, "One targeted adjustment creates exponential performance gains. Pick your highest-leverage move."), topDrivers.map(([name]) => /*#__PURE__*/React.createElement("button", {
     key: name,
     className: "commitment-btn",
-    onClick: () => commitToIntervention(ADJUSTMENTS[name].title)
+    onClick: () => commitToIntervention((moveFor(name) || ADJUSTMENTS[name]).title)
   }, /*#__PURE__*/React.createElement("span", {
     className: "commitment-name"
-  }, ADJUSTMENTS[name].title), /*#__PURE__*/React.createElement("span", {
+  }, (moveFor(name) || ADJUSTMENTS[name]).title), /*#__PURE__*/React.createElement("span", {
     className: "commitment-arrow"
   }, "→")))), commitmentChoice && /*#__PURE__*/React.createElement("div", {
     className: "commitment-confirmed"
@@ -5331,14 +5405,67 @@ function App() {
       background: latest.cognitiveLoad < 50 ? chargeColor(85) : latest.cognitiveLoad < 70 ? "#FFB84D" : chargeColor(20)
     }
   })))), /*#__PURE__*/React.createElement("p", {
-    className: "fine"
-  }, latest.openDecisions, " open decisions · ", latest.contextSwitches, " context switches/day · ", latest.deepWorkBlocks, " deep work blocks"), latest.cognitiveLoad > 70 && /*#__PURE__*/React.createElement("p", {
+    className: "card-p",
+    style: {
+      marginTop: 0,
+      marginBottom: 10,
+      fontSize: 15,
+      fontWeight: 600,
+      color: latest.cognitiveLoad < 50 ? chargeColor(85) : latest.cognitiveLoad < 70 ? "#FFB84D" : chargeColor(20)
+    }
+  }, latest.cognitiveLoad < 35 ? "Light — you have room to take on more" : latest.cognitiveLoad < 50 ? "Manageable — this is a sustainable week" : latest.cognitiveLoad < 70 ? "Getting heavy — worth trimming something" : "Overloaded — this pace costs you output"), /*#__PURE__*/React.createElement("p", {
     className: "fine",
     style: {
-      marginTop: 8,
+      marginTop: 0,
+      marginBottom: 10
+    }
+  }, "Lower is better. Most people sit between 35 and 60."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 7,
+      marginBottom: 4
+    }
+  }, [["Open decisions", latest.openDecisions, "5–15 is typical", latest.openDecisions > 15], ["Focus switches / day", latest.contextSwitches, "under 10 is healthy", latest.contextSwitches > 12], ["Long focus blocks", latest.deepWorkBlocks, "3+ a week is good", latest.deepWorkBlocks < 3]].map(([label, val, guide, flag]) => /*#__PURE__*/React.createElement("div", {
+    key: label,
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "baseline",
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "fine",
+    style: {
+      margin: 0
+    }
+  }, label), /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: "flex",
+      alignItems: "baseline",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "fine",
+    style: {
+      margin: 0,
+      opacity: 0.7
+    }
+  }, guide), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: 700,
+      fontSize: 14,
+      color: flag ? "#FFB84D" : "#F2F4F7",
+      minWidth: 24,
+      textAlign: "right"
+    }
+  }, val))))), latest.cognitiveLoad > 70 && /*#__PURE__*/React.createElement("p", {
+    className: "fine",
+    style: {
+      marginTop: 10,
       color: chargeColor(20)
     }
-  }, "⚠️ High cognitive load. Delegate decisions or close low-priority projects to recover focus.")), state.history.length >= 2 && /*#__PURE__*/React.createElement("div", {
+  }, "Delegate a decision or close a low-priority project to get focus back.")), state.history.length >= 2 && /*#__PURE__*/React.createElement("div", {
     className: "card"
   }, /*#__PURE__*/React.createElement("div", {
     className: "eyebrow"
@@ -5710,12 +5837,13 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--ink); outline-o
 .today-row { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 14px; }
 .today-row:last-child { margin-bottom: 0; }
 .today-tag {
+  flex: 0 0 auto; align-self: flex-start;
   font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 600; letter-spacing: 0.1em;
   text-transform: uppercase; border-radius: 6px; padding: 4px 8px; white-space: nowrap; margin-top: 2px;
 }
 .today-tag.up { color: hsl(172,80%,60%); background: hsla(172,80%,55%,0.1); }
 .today-tag.down { color: hsl(38,90%,60%); background: hsla(38,90%,55%,0.1); }
-.today-p { color: var(--ink); font-size: 13.5px; line-height: 1.55; }
+.today-p { flex: 1 1 auto; min-width: 0; margin: 0; color: var(--ink); font-size: 13.5px; line-height: 1.55; overflow-wrap: anywhere; }
 
 /* dimensions */
 .dim-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
