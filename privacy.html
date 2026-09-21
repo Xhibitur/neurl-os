@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Privacy Policy — NEURL-OS</title>
+<meta name="description" content="How NEURL-OS collects, uses, stores and shares your information.">
+<meta name="theme-color" content="#0A0C0F">
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap');
+
+:root{
+  --bg:#0A0C0F;
+  --surface:#121519;
+  --surface2:#191D23;
+  --ink:#F2F4F7;
+  --muted:#8B93A1;
+  --line:rgba(255,255,255,0.08);
+  --green:#38EE66;
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:'Inter',system-ui,-apple-system,sans-serif;
+  font-size:16px;
+  line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+
+.skip{
+  position:absolute;left:-9999px;top:0;
+  background:var(--green);color:#0A0C0F;
+  padding:12px 20px;border-radius:0 0 8px 0;
+  font-weight:700;text-decoration:none;z-index:100;
+}
+.skip:focus{left:0}
+
+a{color:var(--green)}
+a:focus-visible,button:focus-visible{
+  outline:2px solid var(--green);
+  outline-offset:3px;
+  border-radius:3px;
+}
+
+.wrap{max-width:760px;margin:0 auto;padding:0 20px}
+
+header.site{
+  border-bottom:1px solid var(--line);
+  padding:calc(22px + env(safe-area-inset-top)) env(safe-area-inset-right) 22px env(safe-area-inset-left);
+  position:sticky;top:0;
+  background:rgba(10,12,15,0.92);
+  backdrop-filter:blur(10px);
+  z-index:10;
+}
+.brand{
+  font-family:'Archivo',sans-serif;
+  font-weight:800;
+  font-size:18px;
+  letter-spacing:-0.02em;
+  color:var(--ink);
+  text-decoration:none;
+  display:inline-block;
+}
+.brand span{color:var(--green)}
+
+main{padding:48px 0 72px}
+
+h1{
+  font-family:'Archivo',sans-serif;
+  font-weight:800;
+  font-size:clamp(30px,6vw,42px);
+  line-height:1.12;
+  letter-spacing:-0.03em;
+  margin:0 0 12px;
+}
+.updated{
+  color:var(--muted);
+  font-size:14px;
+  margin:0 0 36px;
+}
+h2{
+  font-family:'Archivo',sans-serif;
+  font-weight:700;
+  font-size:22px;
+  letter-spacing:-0.02em;
+  margin:44px 0 14px;
+  padding-top:22px;
+  border-top:1px solid var(--line);
+}
+h2:first-of-type{border-top:none;padding-top:0}
+h3{
+  font-family:'Archivo',sans-serif;
+  font-weight:600;
+  font-size:17px;
+  margin:26px 0 8px;
+}
+p{margin:0 0 16px}
+ul{margin:0 0 16px;padding-left:22px}
+li{margin-bottom:9px}
+strong{font-weight:600;color:var(--ink)}
+
+.lead{
+  font-size:17px;
+  color:var(--ink);
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-left:3px solid var(--green);
+  border-radius:10px;
+  padding:20px 22px;
+  margin:0 0 36px;
+}
+.lead p:last-child{margin-bottom:0}
+
+.callout{
+  background:var(--surface2);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:18px 20px;
+  margin:20px 0;
+}
+.callout p:last-child{margin-bottom:0}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin:18px 0 22px;
+  font-size:14.5px;
+}
+caption{
+  text-align:left;
+  color:var(--muted);
+  font-size:14px;
+  padding-bottom:10px;
+}
+th,td{
+  text-align:left;
+  padding:12px 14px;
+  border:1px solid var(--line);
+  vertical-align:top;
+}
+th{
+  background:var(--surface2);
+  font-weight:600;
+  font-family:'Archivo',sans-serif;
+}
+td{background:var(--surface)}
+
+.addr{
+  font-style:normal;
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:18px 20px;
+  margin:16px 0;
+  line-height:1.8;
+}
+
+footer.site{
+  border-top:1px solid var(--line);
+  padding:32px 0 calc(48px + env(safe-area-inset-bottom));
+  color:var(--muted);
+  font-size:14px;
+}
+footer.site nav{margin-bottom:14px}
+footer.site nav a{
+  color:var(--muted);
+  text-decoration:none;
+  margin-right:20px;
+  display:inline-block;
+  padding:4px 0;
+}
+footer.site nav a:hover,footer.site nav a:focus-visible{
+  color:var(--ink);
+  text-decoration:underline;
+}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+}
+</style>
+</head>
+<body>
+
+<a class="skip" href="#content">Skip to main content</a>
+
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="/">NEURL<span>-OS</span></a>
+  </div>
+</header>
+
+<main id="content">
+<div class="wrap">
+
+  <h1>Privacy Policy</h1>
+  <p class="updated">Last updated: September 18, 2026 &middot; Effective: September 18, 2026</p>
+
+  <div class="lead">
+    <p><strong>The short version:</strong> your calibration answers stay on your own device. We never sell your information. We only ask for an email address if you choose to give one, and you can have everything we hold about you deleted by emailing <a href="mailto:info@neurl-os.com">info@neurl-os.com</a>.</p>
+  </div>
+
+  <p>This policy explains what NEURL-OS collects, why, how long we keep it, and what control you have. It applies to neurl-os.com and to any partner-branded version of the calibration.</p>
+
+  <h2>1. Who we are</h2>
+  <p>NEURL-OS is operated by <strong>Xhibitur LLC</strong>, a New York limited liability company. Xhibitur LLC is the party responsible for the information described in this policy.</p>
+  <address class="addr">
+    Xhibitur LLC<br>
+    418 Broadway, STE N<br>
+    Albany, NY 12207<br>
+    United States<br>
+    <a href="mailto:info@neurl-os.com">info@neurl-os.com</a>
+  </address>
+
+  <h2>2. What we collect</h2>
+
+  <h3>Information that stays on your device</h3>
+  <p>When you complete a weekly calibration, your answers about sleep, workload, movement, stress, attention and fuel are saved in your browser's local storage on the device you used. Your score history and streaks are stored the same way.</p>
+  <div class="callout">
+    <p><strong>This data is not uploaded to us.</strong> It does not leave your device unless you take one of the specific actions described below. If you clear your browser data or use a different device, that history is gone and we cannot restore it.</p>
+  </div>
+
+  <h3>Information you choose to give us</h3>
+  <table>
+    <caption>Each item below is collected only if you take the action described.</caption>
+    <thead>
+      <tr><th scope="col">What</th><th scope="col">When</th><th scope="col">Why</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Email address</td>
+        <td>Only if you tick the opt-in box</td>
+        <td>To send you calibration reminders and product updates</td>
+      </tr>
+      <tr>
+        <td>First name or display name</td>
+        <td>Only if you join a group or team board</td>
+        <td>To show you on that group's board</td>
+      </tr>
+      <tr>
+        <td>Your score and dimension scores</td>
+        <td>Only if you join a group or team board</td>
+        <td>To calculate that group's averages</td>
+      </tr>
+      <tr>
+        <td>Push notification token</td>
+        <td>Only if you allow browser notifications</td>
+        <td>To send the weekly reminder you asked for</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Information collected automatically</h3>
+  <ul>
+    <li><strong>Analytics.</strong> We use Google Analytics 4 to understand how many people visit, which screens they reach, and how many complete a calibration. This uses cookies and similar technology and records a truncated IP address, approximate region, device type and browser.</li>
+    <li><strong>Partner attribution.</strong> If you arrive through a partner link (for example a gym's QR code), we record which partner sent you, so we can tell that partner how many people their link reached. This is reported to partners only as totals, never as a list of individuals.</li>
+    <li><strong>Local storage.</strong> Beyond your calibration history, we store small technical values such as your reminder preference and which partner page you arrived from, so the experience stays consistent between visits.</li>
+  </ul>
+
+  <h2>3. How group and team boards protect you</h2>
+  <p>Group boards are built so that no individual's data is exposed:</p>
+  <ul>
+    <li>Email addresses used to join a board are converted to an irreversible cryptographic hash (SHA-256) before being stored. We store the hash, not the address.</li>
+    <li>Individual dimension scores are never returned to any person viewing a board, including a group's organiser or a partner.</li>
+    <li>A group average is only calculated and displayed when <strong>at least five</strong> people have submitted recently. Below that, nothing is shown — because an average drawn from a very small group can identify the people in it.</li>
+  </ul>
+  <p>If you are participating through an employer, gym or other organisation, that organisation receives aggregate figures only. It does not receive your individual score, your answers or your email address from us.</p>
+
+  <h2>4. How we use information</h2>
+  <ul>
+    <li>To calculate and display your score, forecast and weekly focus</li>
+    <li>To send reminders and updates you have asked to receive</li>
+    <li>To calculate group and team averages subject to the protections above</li>
+    <li>To understand aggregate usage so we can improve the product</li>
+    <li>To report aggregate reach to partners who refer people to us</li>
+    <li>To meet legal obligations and to protect the service from abuse</li>
+  </ul>
+
+  <h2>5. We do not sell your information</h2>
+  <p><strong>Xhibitur LLC does not sell personal information, and does not share it for cross-context behavioural advertising.</strong> We have not done so in the preceding twelve months.</p>
+  <p>We share information only in these limited circumstances:</p>
+  <ul>
+    <li><strong>Service providers</strong> who run the infrastructure on our behalf — our hosting and storage provider (Netlify), and Google Analytics. They may process information only to provide their service to us.</li>
+    <li><strong>Partners</strong> receive aggregate figures only, as described in section 3.</li>
+    <li><strong>Legal requirements</strong> — if required by law, valid legal process, or to protect rights, safety or the integrity of the service.</li>
+    <li><strong>A business transfer</strong> — if Xhibitur LLC is involved in a merger, acquisition or sale of assets, information may transfer as part of that transaction. We will post notice here before your information becomes subject to a different policy.</li>
+  </ul>
+
+  <h2>6. How long we keep things</h2>
+  <table>
+    <thead>
+      <tr><th scope="col">Data</th><th scope="col">Retention</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Calibration answers and score history</td><td>On your device until you clear it. We hold no copy.</td></tr>
+      <tr><td>Email address (if opted in)</td><td>Until you unsubscribe or ask us to delete it</td></tr>
+      <tr><td>Group board entries</td><td>Removed from active averages after 14 days of inactivity; deleted on request</td></tr>
+      <tr><td>Push notification token</td><td>Until you disable notifications or the browser revokes it</td></tr>
+      <tr><td>Analytics data</td><td>Retained by Google Analytics for 14 months</td></tr>
+    </tbody>
+  </table>
+
+  <h2>7. Your choices and rights</h2>
+  <p>Wherever you live, you can ask us to:</p>
+  <ul>
+    <li><strong>Tell you</strong> what information we hold about you</li>
+    <li><strong>Delete</strong> that information</li>
+    <li><strong>Correct</strong> information that is wrong</li>
+    <li><strong>Stop</strong> sending you email or push notifications</li>
+  </ul>
+  <p>Email <a href="mailto:info@neurl-os.com">info@neurl-os.com</a> and we will respond within 45 days. We will not treat you differently for exercising any of these rights.</p>
+
+  <h3>California residents</h3>
+  <p>If you live in California, the California Consumer Privacy Act gives you the rights to know, delete, correct, and to opt out of sale or sharing of personal information. As stated in section 5, <strong>we do not sell or share personal information</strong>, so there is nothing to opt out of — but you may still exercise your other rights using the contact above. You may also designate an authorised agent to make a request for you.</p>
+
+  <h3>Turning things off yourself</h3>
+  <ul>
+    <li><strong>Analytics:</strong> you can decline analytics on your first visit, use your browser's Do Not Track or blocking settings, or install the <a href="https://tools.google.com/dlpage/gaoptout" rel="noopener">Google Analytics opt-out add-on</a>.</li>
+    <li><strong>Push notifications:</strong> turn them off in your browser's site settings for neurl-os.com.</li>
+    <li><strong>Everything on your device:</strong> clearing site data for neurl-os.com erases your entire local history.</li>
+  </ul>
+
+  <h2>8. Cookies and similar technology</h2>
+  <p>We use two categories:</p>
+  <ul>
+    <li><strong>Strictly necessary</strong> — local storage that holds your calibration history, your reminder setting and your partner context. The product does not work without these.</li>
+    <li><strong>Analytics</strong> — Google Analytics cookies, which we load only after you have had the opportunity to decline.</li>
+  </ul>
+  <p>We do not use advertising cookies, and we do not allow third-party advertising networks on this site.</p>
+
+  <h2>9. Security</h2>
+  <p>The site is served entirely over HTTPS. Email addresses used for group boards are hashed before storage. Administrative functions are protected by a credential verified on the server, never in the browser. No system is perfectly secure, and we cannot guarantee absolute security — but the design deliberately minimises what we hold in the first place, which is the strongest protection available.</p>
+
+  <h2>10. This is not a medical service</h2>
+  <div class="callout">
+    <p>NEURL-OS is a self-assessment and planning tool for working adults. It is <strong>not a medical device, not a diagnostic tool, and not a substitute for professional medical, psychological or clinical advice</strong>. Your score is not a health assessment and should never be used to diagnose, treat or rule out any condition. If you have concerns about your health, speak to a qualified professional.</p>
+  </div>
+
+  <h2>11. Age requirement</h2>
+  <p>NEURL-OS is intended for people aged <strong>18 and over</strong>. We do not knowingly collect personal information from anyone under 18. If you believe a person under 18 has given us information, email <a href="mailto:info@neurl-os.com">info@neurl-os.com</a> and we will delete it.</p>
+
+  <h2>12. Where information is processed</h2>
+  <p>We operate from the United States, and information is processed there. If you use NEURL-OS from outside the United States, you understand that your information will be processed in a country whose data protection laws may differ from those in your own.</p>
+
+  <h2>13. Changes to this policy</h2>
+  <p>If we change this policy we will update the date at the top of this page. If the change is significant — for example a new category of information, or a new recipient — we will give notice on the site before it takes effect.</p>
+
+  <h2>14. Contact us</h2>
+  <p>Questions, requests or complaints about privacy:</p>
+  <address class="addr">
+    Xhibitur LLC &mdash; NEURL-OS<br>
+    418 Broadway, STE N<br>
+    Albany, NY 12207<br>
+    United States<br>
+    <a href="mailto:info@neurl-os.com">info@neurl-os.com</a>
+  </address>
+
+</div>
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <nav aria-label="Legal and site links">
+      <a href="/">Home</a>
+      <a href="/privacy.html" aria-current="page">Privacy</a>
+      <a href="/terms.html">Terms</a>
+      <a href="/contact.html">Contact</a>
+    </nav>
+    <p>&copy; 2026 Xhibitur LLC. All rights reserved. NEURL-OS is not a medical device and does not provide medical advice.</p>
+  </div>
+</footer>
+
+</body>
+</html>

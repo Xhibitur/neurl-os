@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Contact — NEURL-OS</title>
+<meta name="description" content="Contact NEURL-OS: info@neurl-os.com">
+<meta name="theme-color" content="#0A0C0F">
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap');
+
+:root{
+  --bg:#0A0C0F;
+  --surface:#121519;
+  --surface2:#191D23;
+  --ink:#F2F4F7;
+  --muted:#8B93A1;
+  --line:rgba(255,255,255,0.08);
+  --green:#38EE66;
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:'Inter',system-ui,-apple-system,sans-serif;
+  font-size:16px;
+  line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+
+.skip{
+  position:absolute;left:-9999px;top:0;
+  background:var(--green);color:#0A0C0F;
+  padding:12px 20px;border-radius:0 0 8px 0;
+  font-weight:700;text-decoration:none;z-index:100;
+}
+.skip:focus{left:0}
+
+a{color:var(--green)}
+a:focus-visible,button:focus-visible{
+  outline:2px solid var(--green);
+  outline-offset:3px;
+  border-radius:3px;
+}
+
+.wrap{max-width:760px;margin:0 auto;padding:0 20px}
+
+header.site{
+  border-bottom:1px solid var(--line);
+  padding:calc(22px + env(safe-area-inset-top)) env(safe-area-inset-right) 22px env(safe-area-inset-left);
+  position:sticky;top:0;
+  background:rgba(10,12,15,0.92);
+  backdrop-filter:blur(10px);
+  z-index:10;
+}
+.brand{
+  font-family:'Archivo',sans-serif;
+  font-weight:800;
+  font-size:18px;
+  letter-spacing:-0.02em;
+  color:var(--ink);
+  text-decoration:none;
+  display:inline-block;
+}
+.brand span{color:var(--green)}
+
+main{padding:48px 0 72px}
+
+h1{
+  font-family:'Archivo',sans-serif;
+  font-weight:800;
+  font-size:clamp(30px,6vw,42px);
+  line-height:1.12;
+  letter-spacing:-0.03em;
+  margin:0 0 12px;
+}
+.sub{color:var(--muted);font-size:17px;margin:0 0 40px;max-width:56ch}
+h2{
+  font-family:'Archivo',sans-serif;
+  font-weight:700;
+  font-size:22px;
+  letter-spacing:-0.02em;
+  margin:44px 0 14px;
+  padding-top:22px;
+  border-top:1px solid var(--line);
+}
+h2:first-of-type{border-top:none;padding-top:0;margin-top:0}
+p{margin:0 0 16px}
+ul{margin:0 0 16px;padding-left:22px}
+li{margin-bottom:9px}
+strong{font-weight:600;color:var(--ink)}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+  gap:16px;
+  margin:24px 0 8px;
+}
+.card{
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:22px;
+}
+.card h3{
+  font-family:'Archivo',sans-serif;
+  font-weight:700;
+  font-size:16px;
+  margin:0 0 6px;
+  letter-spacing:-0.01em;
+}
+.card p{
+  color:var(--muted);
+  font-size:14.5px;
+  margin:0 0 12px;
+}
+.card a{
+  font-weight:600;
+  font-size:15px;
+  word-break:break-word;
+}
+
+.email{
+  display:inline-block;
+  font-family:'Archivo',sans-serif;
+  font-weight:700;
+  font-size:clamp(20px,5vw,26px);
+  letter-spacing:-0.01em;
+  color:var(--green);
+  text-decoration:none;
+  border-bottom:2px solid rgba(56,238,102,0.35);
+  padding:4px 0;
+}
+.email:hover{border-bottom-color:var(--green)}
+.addr{
+  font-style:normal;
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-left:3px solid var(--green);
+  border-radius:10px;
+  padding:20px 22px;
+  margin:16px 0 24px;
+  line-height:1.85;
+  font-size:16px;
+}
+
+.note{
+  background:var(--surface2);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:18px 20px;
+  margin:20px 0;
+  font-size:15px;
+}
+.note p:last-child{margin-bottom:0}
+
+footer.site{
+  border-top:1px solid var(--line);
+  padding:32px 0 calc(48px + env(safe-area-inset-bottom));
+  color:var(--muted);
+  font-size:14px;
+}
+footer.site nav{margin-bottom:14px}
+footer.site nav a{
+  color:var(--muted);
+  text-decoration:none;
+  margin-right:20px;
+  display:inline-block;
+  padding:4px 0;
+}
+footer.site nav a:hover,footer.site nav a:focus-visible{
+  color:var(--ink);
+  text-decoration:underline;
+}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+}
+</style>
+</head>
+<body>
+
+<a class="skip" href="#content">Skip to main content</a>
+
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="/">NEURL<span>-OS</span></a>
+  </div>
+</header>
+
+<main id="content">
+<div class="wrap">
+
+  <h1>Contact</h1>
+  <p class="sub">Support, privacy requests, partnerships or anything else &mdash; one inbox, answered by a real person.</p>
+
+  <a class="email" href="mailto:info@neurl-os.com">info@neurl-os.com</a>
+
+</div>
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <nav aria-label="Legal and site links">
+      <a href="/">Home</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+      <a href="/contact.html" aria-current="page">Contact</a>
+    </nav>
+    <p>&copy; 2026 Xhibitur LLC. All rights reserved. NEURL-OS is not a medical device and does not provide medical advice.</p>
+  </div>
+</footer>
+
+</body>
+</html>
