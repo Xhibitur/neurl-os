@@ -23,9 +23,33 @@
     gtag('config', 'G-HNBQNHRJEL');
   </script>
   <style>html, body { margin: 0; background: #0A0C0F; }</style>
+  <style>
+    /* ---------- iPhone safe areas (Dynamic Island, home bar, landscape notch) ---------- */
+    html,body{background:#0A0C0F}
+    body{
+      padding-top:env(safe-area-inset-top);
+      padding-left:env(safe-area-inset-left);
+      padding-right:env(safe-area-inset-right);
+    }
+    /* ---------- legal footer (outside the React app) ---------- */
+    .legal-footer{max-width:560px;margin:0 auto;padding:28px 20px calc(40px + env(safe-area-inset-bottom));border-top:1px solid rgba(255,255,255,0.08);text-align:center;font-family:'Inter',system-ui,-apple-system,sans-serif;background:#0A0C0F}
+    .legal-footer nav{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 24px;margin:0 0 10px}
+    .legal-footer a{color:#8B93A1;font-size:13.5px;text-decoration:none;padding:8px 2px;display:inline-block}
+    .legal-footer a:hover{color:#F2F4F7;text-decoration:underline}
+    .legal-footer a:focus-visible{outline:2px solid #38EE66;outline-offset:3px;border-radius:3px}
+    .legal-footer p{margin:0;color:#8B93A1;font-size:12px;line-height:1.6}
+  </style>
 </head>
 <body>
   <div id="root"></div>
+  <footer class="legal-footer">
+    <nav aria-label="Legal">
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+      <a href="/contact.html">Contact</a>
+    </nav>
+    <p>&copy; 2026 Xhibitur LLC &middot; For adults 18+ &middot; A self-assessment tool, not medical advice.</p>
+  </footer>
   <script>
   window.addEventListener('error', function (e) {
     var el = document.createElement('pre');
@@ -4793,7 +4817,7 @@ function App() {
       textAlign: "left",
       lineHeight: 1.5
     }
-  }, "Email me occasional updates and offers from NEURL-OS and its partners. Optional — you can reply to any message to stop. We never sell your address.")), /*#__PURE__*/React.createElement("button", {
+  }, "Email me weekly calibration reminders and occasional updates from NEURL-OS. Optional — unsubscribe anytime. We never sell or share your address.")), /*#__PURE__*/React.createElement("button", {
     className: "btn-primary wide",
     style: {
       marginTop: 20
