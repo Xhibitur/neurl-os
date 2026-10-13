@@ -3708,6 +3708,73 @@ function ReflexArc({ score, size = 196 }) {
   }, band.name)));
 }
 
+/* One wordmark across the whole experience. Tapping it goes home, the way a
+   logo does on any site. The welcome screen keeps its own larger hero mark. */
+function AppHeader({ onHome }) {
+  return /*#__PURE__*/React.createElement("div", { className: "app-head" },
+    /*#__PURE__*/React.createElement("button", {
+      className: "wordmark sm wordmark-btn", onClick: onHome,
+      "aria-label": "NEURL-OS home"
+    }, "NEURL-OS"));
+}
+
+/* What the test produces, drawn once. Ten taps as a trace; higher is slower.
+   The dashed line is the median the score comes from, the faint red line is
+   the half-second mark, and the one point above it is a lapse. It teaches
+   the two words the result screen uses. */
+function ReflexSpec() {
+  const vals = [262, 248, 291, 255, 268, 512, 274, 259, 281, 266];
+  const W = 320, H = 150, L = 10, R = 226, TOP = 24, BASE = 108;
+  const LO = 220, HI = 545, med = 268;
+  const n = vals.length, step = (R - L) / (n - 1);
+  const y = v => BASE - (v - LO) / (HI - LO) * (BASE - TOP);
+  const x = i => L + i * step;
+  const pts = vals.map((v, i) => x(i) + "," + y(v)).join(" ");
+  const dots = vals.map((v, i) => {
+    const lapse = v > REFLEX_LAPSE;
+    return /*#__PURE__*/React.createElement("circle", {
+      key: i, cx: x(i), cy: y(v), r: lapse ? 5.5 : 4,
+      fill: lapse ? "#FF9F9F" : "#38EE66",
+      stroke: "var(--surface)", strokeWidth: 2,
+      className: "rf-spec-dot", style: { "--i": i }
+    });
+  });
+  return /*#__PURE__*/React.createElement("div", { className: "rf-spec" },
+    /*#__PURE__*/React.createElement("svg", {
+      viewBox: `0 0 ${W} ${H}`, className: "rf-spec-svg", role: "img",
+      "aria-label": "Ten taps plotted in order. Nine land near 268 milliseconds; one crosses the half-second mark and counts as a lapse."
+    },
+      /*#__PURE__*/React.createElement("line", {
+        x1: L, y1: y(REFLEX_LAPSE), x2: R + 8, y2: y(REFLEX_LAPSE),
+        stroke: "rgba(255,159,159,0.35)", strokeWidth: 1, strokeDasharray: "3 4"
+      }),
+      /*#__PURE__*/React.createElement("text", {
+        x: W - 2, y: y(REFLEX_LAPSE) + 3.5, textAnchor: "end",
+        className: "rf-spec-t rf-spec-red"
+      }, "lapse · 500"),
+      /*#__PURE__*/React.createElement("line", {
+        x1: L, y1: y(med), x2: R + 8, y2: y(med),
+        stroke: "rgba(242,244,247,0.3)", strokeWidth: 1, strokeDasharray: "3 4"
+      }),
+      /*#__PURE__*/React.createElement("text", {
+        x: W - 2, y: y(med) + 3.5, textAnchor: "end", className: "rf-spec-t rf-spec-ink"
+      }, "median · 268"),
+      /*#__PURE__*/React.createElement("polyline", {
+        points: pts, fill: "none", stroke: "#38EE66", strokeWidth: 2,
+        strokeLinejoin: "round", strokeLinecap: "round", opacity: 0.45,
+        className: "rf-spec-line"
+      }),
+      dots,
+      /*#__PURE__*/React.createElement("text", {
+        x: L, y: H - 6, className: "rf-spec-t"
+      }, "ten taps"),
+      /*#__PURE__*/React.createElement("text", {
+        x: R + 8, y: H - 6, textAnchor: "end", className: "rf-spec-t"
+      }, "30 seconds")),
+    /*#__PURE__*/React.createElement("p", { className: "rf-spec-cap" },
+      "One point per tap. Higher is slower."));
+}
+
 /* The test itself. Timers live in refs so a re-render never strands one. */
 function ReflexTest({ onFinish }) {
   const [phase, setPhase] = useState("intro"); // intro | wait | go | fb
@@ -3932,22 +3999,25 @@ function ReflexFlow({ challenge, best, onSave, onDone, onGetScore }) {
 
     /*#__PURE__*/React.createElement("div", { className: "card" },
       /*#__PURE__*/React.createElement("div", { className: "eyebrow" }, "Reflex · optional"),
-      /*#__PURE__*/React.createElement("h2", { className: "rf-h2" }, "Measure what the sliders can't."),
-      /*#__PURE__*/React.createElement("p", { className: "card-p", style: { marginTop: 8 } },
-        "Ten taps, 30 seconds. Every reaction is timed to the millisecond."),
+      /*#__PURE__*/React.createElement("h2", { className: "rf-h2" }, "Measure your reaction speed"),
+
+      /*#__PURE__*/React.createElement(ReflexSpec, null),
 
       /*#__PURE__*/React.createElement("div", { className: "rf-measures" },
         /*#__PURE__*/React.createElement("div", { className: "rf-measure" },
+          /*#__PURE__*/React.createElement("span", { className: "rf-swatch go" }),
           /*#__PURE__*/React.createElement("span", { className: "rf-m-t" }, "Speed"),
-          /*#__PURE__*/React.createElement("span", { className: "rf-m-d" }, "Your median reaction, in milliseconds")),
+          /*#__PURE__*/React.createElement("span", { className: "rf-m-d" }, "The median of your ten taps")),
         /*#__PURE__*/React.createElement("div", { className: "rf-measure" },
+          /*#__PURE__*/React.createElement("span", { className: "rf-swatch bad" }),
           /*#__PURE__*/React.createElement("span", { className: "rf-m-t" }, "Lapses"),
-          /*#__PURE__*/React.createElement("span", { className: "rf-m-d" }, "Moments your attention dropped out entirely")),
+          /*#__PURE__*/React.createElement("span", { className: "rf-m-d" }, "Taps over half a second")),
         /*#__PURE__*/React.createElement("div", { className: "rf-measure" },
+          /*#__PURE__*/React.createElement("span", { className: "rf-swatch line" }),
           /*#__PURE__*/React.createElement("span", { className: "rf-m-t" }, "Trend"),
           /*#__PURE__*/React.createElement("span", { className: "rf-m-d" }, "How both move across your week"))),
 
-      /*#__PURE__*/React.createElement("p", { className: "card-p", style: { marginTop: 12 } },
+      /*#__PURE__*/React.createElement("p", { className: "card-p", style: { marginTop: 16 } },
         "Reaction speed is what fatigue researchers use to quantify a drop in capacity, because it slows" +
         " before you feel slower. Everything else in NEURL-OS is what you report. This is measured."),
       /*#__PURE__*/React.createElement("p", { className: "fine", style: { marginTop: 12, textAlign: "left" } },
@@ -3956,7 +4026,7 @@ function ReflexFlow({ challenge, best, onSave, onDone, onGetScore }) {
       /*#__PURE__*/React.createElement("button", {
         className: "btn-primary wide", style: { marginTop: 18 },
         onClick: () => setStage("test")
-      }, challenge != null ? "Measure mine" : "Run the check"),
+      }, "Test your Reflex"),
       /*#__PURE__*/React.createElement("button", {
         className: "btn-secondary wide", style: { marginTop: 10 }, onClick: skip
       }, challenge != null ? "Maybe later" : "Not today")));
@@ -3971,27 +4041,59 @@ function ReflexCard({ reflex, onStart }) {
     className: "card", style: { marginTop: 16, marginBottom: 16 }
   }, /*#__PURE__*/React.createElement("div", {
     style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }
-  }, /*#__PURE__*/React.createElement("div", { className: "eyebrow" }, "Reflex · last 7"),
-    best > 0 && /*#__PURE__*/React.createElement("span", { className: "fine", style: { margin: 0 } }, "best ", best)),
+  }, /*#__PURE__*/React.createElement("div", { className: "eyebrow" },
+    list.length ? "Reaction speed · last 7 days" : "Reaction speed"),
+    best > 0
+      ? /*#__PURE__*/React.createElement("span", { className: "fine", style: { margin: 0 } }, "best ", best)
+      : /*#__PURE__*/React.createElement("span", { className: "rf-example" }, "example")),
 
     list.length === 0
-      ? /*#__PURE__*/React.createElement("p", { className: "card-p", style: { marginTop: 10, marginBottom: 0, fontSize: 14 } },
-          "A 30-second reaction speed test. The one reading here that is measured rather than reported.")
+      ? /*#__PURE__*/React.createElement(React.Fragment, null,
+          /*#__PURE__*/React.createElement("div", { className: "rf-chart" },
+            [72, 80, 64, 58, 83, 76, 81].map((v, i, arr) => /*#__PURE__*/React.createElement("div", {
+              key: i, className: "rf-col"
+            },
+              /*#__PURE__*/React.createElement("span", { className: "rf-val" }, ""),
+              /*#__PURE__*/React.createElement("div", {
+                className: "rf-bar ghost",
+                style: { height: Math.max(5, Math.round(v / 100 * 56)) }
+              })))),
+          /*#__PURE__*/React.createElement("div", { className: "rf-days" },
+            [6, 5, 4, 3, 2, 1, 0].map((back, i) => /*#__PURE__*/React.createElement("span", {
+              key: i, className: "rf-day ghost"
+            }, back === 0
+              ? "today"
+              : new Date(Date.now() - back * 86400000).toLocaleDateString(undefined, { weekday: "short" })))),
+          /*#__PURE__*/React.createElement("p", { className: "fine", style: { marginTop: 10, textAlign: "left" } },
+            "An example week. Yours fills in from today — take it daily and you will see your capacity dip before you feel it."))
       : /*#__PURE__*/React.createElement(React.Fragment, null,
-          /*#__PURE__*/React.createElement("div", { className: "rf-spark" },
-            list.map((r, i) => /*#__PURE__*/React.createElement("div", {
-              key: i,
-              className: "rf-sb",
-              title: r.score + " on " + fmtDate(r.date),
-              style: {
-                height: Math.max(4, Math.round(r.score / 100 * 46)),
-                background: r.score >= 70 ? "#38EE66" : r.score >= 55 ? "#FFB84D" : "#FF9F9F"
-              }
-            }))),
+          /*#__PURE__*/React.createElement("div", { className: "rf-chart" },
+            list.map((r, i) => {
+              const last = i === list.length - 1;
+              return /*#__PURE__*/React.createElement("div", {
+                key: i, className: "rf-col", title: r.score + " on " + fmtDate(r.date)
+              },
+                /*#__PURE__*/React.createElement("span", {
+                  className: last ? "rf-val on" : "rf-val"
+                }, last ? r.score : ""),
+                /*#__PURE__*/React.createElement("div", {
+                  className: last ? "rf-bar last" : "rf-bar",
+                  style: {
+                    height: Math.max(5, Math.round(r.score / 100 * 56)),
+                    background: r.score >= 70 ? "#38EE66" : r.score >= 55 ? "#FFB84D" : "#FF9F9F"
+                  }
+                }));
+            })),
+          /*#__PURE__*/React.createElement("div", { className: "rf-days" },
+            list.map((r, i) => /*#__PURE__*/React.createElement("span", {
+              key: i, className: i === list.length - 1 ? "rf-day on" : "rf-day"
+            }, i === list.length - 1
+              ? "today"
+              : new Date(r.date).toLocaleDateString(undefined, { weekday: "short" })))),
           /*#__PURE__*/React.createElement("p", { className: "fine", style: { marginTop: 10, textAlign: "left" } },
             list.length < 3
-              ? "A few more readings and the shape of your week starts to show."
-              : "Watch it against your sleep slider. They usually move together.")),
+              ? "One bar per day. A few more and you will start to see the pattern."
+              : "One bar per day. Taking it daily is what turns one number into a pattern — and shows a dip before you feel it.")),
 
     /*#__PURE__*/React.createElement("button", {
       className: today ? "btn-secondary" : "btn-primary",
@@ -4380,6 +4482,11 @@ function App() {
 
   const reflexBest = (state.reflex || []).reduce((b, r) => r.score > b ? r.score : b, 0) || null;
 
+  const goHome = () => {
+    setChallengeTarget(null);
+    setView(state.history.length ? "today" : "welcome");
+  };
+
   // Log quarter-way milestones so abandonment has a location, not just a count.
   useEffect(() => {
     if (view !== "checkin") return;
@@ -4513,6 +4620,8 @@ function App() {
     className: "shell"
   }, view === "loading" && /*#__PURE__*/React.createElement("div", {
     className: "loading-dot"
+  }), !showAdmin && view !== "loading" && view !== "welcome" && view !== "today" && /*#__PURE__*/React.createElement(AppHeader, {
+    onHome: goHome
   }), !showAdmin && partner && view !== "partner" && /*#__PURE__*/React.createElement(PartnerBanner, {
     partner: partner
   }), !showAdmin && view === "welcome" && /*#__PURE__*/React.createElement("div", {
@@ -5625,8 +5734,10 @@ function App() {
     className: "fade-in"
   }, /*#__PURE__*/React.createElement("div", {
     className: "dash-head"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "wordmark sm"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "wordmark sm wordmark-btn",
+    onClick: goHome,
+    "aria-label": "NEURL-OS home"
   }, "NEURL-OS"), state.user ? /*#__PURE__*/React.createElement("div", {
     className: "streak"
   }, "⚡ ", streak, "-week streak") : /*#__PURE__*/React.createElement("button", {
@@ -6081,6 +6192,15 @@ const CSS = `
   letter-spacing: 0.34em; color: var(--ink); margin-bottom: 30px;
 }
 .wordmark.sm { margin-bottom: 0; font-size: 12px; }
+.app-head { display: flex; align-items: center; margin-bottom: 22px; }
+.wordmark-btn {
+  background: none; border: 0; padding: 4px 2px; cursor: pointer;
+  font-family: 'JetBrains Mono', monospace; font-weight: 600;
+  letter-spacing: 0.34em; color: var(--ink);
+  transition: opacity .15s ease;
+}
+.wordmark-btn:hover { opacity: 0.75; }
+.wordmark-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 4px; }
 
 .center-col { display: flex; flex-direction: column; align-items: center; text-align: center; }
 .center-text { text-align: center; }
@@ -6462,13 +6582,67 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--ink); outline-o
 .rf-stat-u{ font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--muted); }
 .rf-stat-l{ font-family: 'JetBrains Mono', monospace; font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
 
-.rf-measures{ display: flex; flex-direction: column; gap: 9px; margin: 14px 0 2px; }
-.rf-measure{ display: flex; gap: 10px; align-items: baseline; }
-.rf-m-t{ font-family: 'Archivo', sans-serif; font-weight: 700; font-size: 13px; color: var(--ink); flex: 0 0 72px; }
+.rf-measures{ display: flex; flex-direction: column; gap: 10px; margin: 16px 0 2px; }
+.rf-measure{ display: flex; gap: 9px; align-items: baseline; }
+.rf-m-t{ font-family: 'Archivo', sans-serif; font-weight: 700; font-size: 13px; color: var(--ink); flex: 0 0 58px; }
 .rf-m-d{ font-size: 13px; color: var(--muted); line-height: 1.45; min-width: 0; }
+.rf-swatch{ width: 9px; height: 9px; border-radius: 2px; flex: 0 0 9px; position: relative; top: -1px; }
+.rf-swatch.go{ background: #38EE66; }
+.rf-swatch.bad{ background: #FF9F9F; }
+.rf-swatch.line{ height: 0; border-top: 2px dashed rgba(242,244,247,0.55); border-radius: 0; top: -4px; }
 
-.rf-spark{ display: flex; align-items: flex-end; gap: 5px; height: 46px; margin-top: 12px; }
-.rf-sb{ flex: 1; min-width: 0; border-radius: 3px 3px 1px 1px; }
+/* the explanatory chart on the offer screen */
+.rf-spec{ margin: 18px 0 2px; }
+.rf-spec-svg{ width: 100%; height: auto; display: block; overflow: visible; }
+.rf-spec-t{
+  font-family: 'JetBrains Mono', monospace; font-size: 9.5px;
+  fill: var(--muted); letter-spacing: 0.04em;
+}
+.rf-spec-ink{ fill: rgba(242,244,247,0.75); }
+.rf-spec-red{ fill: #FF9F9F; }
+.rf-spec-dot{
+  animation: rfDot .4s cubic-bezier(.22,1,.36,1) both;
+  animation-delay: calc(var(--i, 0) * 55ms);
+}
+.rf-spec-line{ animation: rfFade .5s ease-out .18s both; }
+@keyframes rfDot{ from{ opacity: 0 } to{ opacity: 1 } }
+@keyframes rfFade{ from{ opacity: 0 } to{ opacity: .45 } }
+.rf-spec-cap{
+  margin: 8px 0 0; text-align: center;
+  font-family: 'JetBrains Mono', monospace; font-size: 9.5px;
+  color: var(--muted); letter-spacing: 0.04em;
+}
+@media (prefers-reduced-motion: reduce){ .rf-spec-dot, .rf-spec-line{ animation: none; } }
+
+.rf-chart{
+  display: flex; align-items: flex-end; gap: 6px; height: 78px;
+  margin-top: 14px; border-bottom: 1px solid var(--line);
+}
+.rf-col{
+  flex: 1; min-width: 0; height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+}
+.rf-val{
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted);
+  margin-bottom: 5px; font-variant-numeric: tabular-nums; min-height: 13px;
+}
+.rf-val.on{ color: var(--ink); font-weight: 600; }
+.rf-bar{ width: 100%; border-radius: 4px 4px 0 0; opacity: 0.7; }
+.rf-bar.last{ opacity: 1; }
+.rf-days{ display: flex; gap: 6px; margin-top: 7px; }
+.rf-day{
+  flex: 1; min-width: 0; text-align: center;
+  font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--muted);
+  letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.rf-day.on{ color: var(--ink); }
+.rf-bar.ghost{ background: var(--muted); opacity: 0.3; }
+.rf-day.ghost{ opacity: 0.6; }
+.rf-example{
+  font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--muted);
+  border: 1px solid var(--line); border-radius: 100px; padding: 3px 8px;
+}
 
 @media (prefers-reduced-motion: reduce){
   .rf-target, .rf-hold{ animation: none; }
