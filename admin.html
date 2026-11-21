@@ -134,6 +134,14 @@ button[disabled]{opacity:.6;cursor:progress}
     </div>
 
     <div class="card">
+      <h2>Teams this week</h2>
+      <p class="muted" style="margin-bottom:12px">Every team, ranked by how full its bar is (5 tests per person), then average score. Hidden teams are marked. Use this to announce Top Teams.</p>
+      <div class="status" id="t-status" role="status" aria-live="polite"></div>
+      <div class="list" id="teams"><p class="empty">Loading…</p></div>
+      <div class="btns" style="margin-top:12px"><button class="sec" type="button" id="teams-btn">Refresh</button></div>
+    </div>
+
+    <div class="card">
       <h2>Backup</h2>
       <p class="muted" style="margin-bottom:12px">Download every partner and opted-in email as one JSON file. Do this monthly and keep it somewhere safe.</p>
       <div class="status" id="b-status" role="status" aria-live="polite"></div>
@@ -176,8 +184,23 @@ $('login').addEventListener('submit',async e=>{
   finally{$('login-btn').disabled=false;}
 });
 $('logout-btn').addEventListener('click',signOut);
+$('teams-btn').addEventListener('click',loadTeams);
 
-async function openPanel(){$('login').hidden=true;$('panel').hidden=false;await refresh();}
+async function openPanel(){$('login').hidden=true;$('panel').hidden=false;await refresh();loadTeams();}
+async function loadTeams(){
+  status('t-status','');$('teams').innerHTML='<p class="empty">Loading…</p>';
+  let res,d={};
+  try{res=await fetch('/.netlify/functions/crews',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'admin',pin})});d=await res.json();}
+  catch(e){status('t-status','Can’t reach the teams service. Check that the crews function is deployed.');$('teams').innerHTML='';return;}
+  if(!res.ok){status('t-status',res.status===401?'That PIN is incorrect.':'Couldn’t load teams ('+res.status+').');$('teams').innerHTML='';return;}
+  const T=d.teams||[];
+  if(!T.length){$('teams').innerHTML='<p class="empty">No teams yet.</p>';return;}
+  $('teams').innerHTML=T.map((t,i)=>`<div class="item" style="grid-template-columns:32px 1fr auto">
+    <b style="font-size:15px">${i+1}</b>
+    <div><b>${esc(t.name)}${t.public?'':'<span class="pill off">Hidden</span>'}</b><code>${t.size} member${t.size===1?'':'s'} · ${t.tests} of ${t.goal} tests · last week ${t.lastWeek.fill}% · ${esc((t.members||[]).join(', '))}</code></div>
+    <div style="text-align:right"><b style="font-size:18px">${t.fill}%</b><code>${t.avg!=null?'avg '+t.avg:'no avg yet'}</code></div>
+  </div>`).join('');
+}
 async function refresh(){
   status('l-status','');
   try{const d=await call({action:'list'});partners=d.partners||[];renderList();}
