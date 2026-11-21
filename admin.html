@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Partner Admin — NEURL-OS</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0A0C0F">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<style>
+:root{--bg:#0A0C0F;--surf:#14181D;--surf2:#0F1318;--hair:#2C323B;--fg:#fff;--soft:#D7DCE3;--muted:#8B93A1;--green:#38EE66;--ink:#06210F;--red:#FF5C5C;--amber:#F5A524;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 "Helvetica Neue",Helvetica,Arial,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+body{padding:calc(24px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(40px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+[hidden]{display:none!important}
+.wrap{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1{margin:0;font-size:22px}
+h2{margin:0 0 12px;font-size:17px}
+.muted{color:var(--muted);font-size:13.5px;margin:0}
+.card{background:var(--surf);border:1px solid var(--hair);border-radius:14px;padding:18px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-weight:600;font-size:13.5px}
+.field small{color:var(--muted);font-size:12.5px}
+input,select,textarea{font:inherit;font-size:16px;color:var(--fg);background:var(--surf2);border:1px solid var(--hair);border-radius:10px;padding:11px 12px;width:100%}
+input[type=color]{padding:4px;height:46px}
+textarea{min-height:80px;resize:vertical}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--green);outline-offset:1px}
+[aria-invalid=true]{border-color:var(--red)}
+.err{color:#FF8A8A;font-size:13px}
+.err:empty{display:none}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.form{display:flex;flex-direction:column;gap:14px}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+button{font:inherit;cursor:pointer;border-radius:10px;padding:11px 16px;font-size:14px;font-weight:600}
+.pri{background:var(--green);color:var(--ink);border:0}
+.sec{background:none;color:var(--soft);border:1px solid var(--hair)}
+.dang{background:none;color:#FF8A8A;border:1px solid #5C2A2A}
+button[disabled]{opacity:.6;cursor:progress}
+.status{border-radius:10px;padding:12px 14px;font-size:14px}
+.status.ok{background:#10261A;border:1px solid #1F4A2B}
+.status.bad{background:#2A1414;border:1px solid #5C2A2A}
+.status:empty{display:none}
+.list{display:flex;flex-direction:column}
+.item{display:grid;grid-template-columns:40px 1fr auto;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--hair)}
+.item:first-child{border-top:0}
+.sw{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:var(--bg);overflow:hidden}
+.sw img{width:100%;height:100%;object-fit:cover;background:#fff}
+.item div{min-width:0}
+.item b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item code{font-size:12px;color:var(--muted);word-break:break-all}
+.pill{font-size:11px;border-radius:999px;padding:2px 8px;border:1px solid var(--hair);color:var(--muted);margin-left:6px}
+.pill.off{color:var(--amber);border-color:#5A4517}
+.empty{color:var(--muted);font-size:14px;margin:0}
+.confirm{display:flex;flex-wrap:wrap;align-items:center;gap:8px;grid-column:1/-1;background:var(--surf2);border:1px solid #5C2A2A;border-radius:10px;padding:10px 12px;font-size:13.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div>
+    <h1>NEURL-OS partner admin</h1>
+    <p class="muted">Create branded links for gyms and companies. Members open <code>neurl-os.com/?p=your-slug</code>.</p>
+  </div>
+
+  <!-- sign in -->
+  <form class="card form" id="login" novalidate>
+    <h2>Sign in</h2>
+    <div class="field">
+      <label for="pin">Admin PIN</label>
+      <input id="pin" type="password" inputmode="numeric" autocomplete="current-password" required>
+      <span class="err" id="pin-err"></span>
+    </div>
+    <div class="btns"><button class="pri" type="submit" id="login-btn">Sign in</button></div>
+  </form>
+
+  <div id="panel" hidden>
+    <div class="card">
+      <h2 id="form-title">New partner</h2>
+      <form class="form" id="pform" novalidate>
+        <div class="grid">
+          <div class="field">
+            <label for="p-name">Name</label>
+            <input id="p-name" maxlength="80" required placeholder="Northside Strength Co.">
+            <span class="err" id="e-name"></span>
+          </div>
+          <div class="field">
+            <label for="p-slug">Link slug</label>
+            <input id="p-slug" maxlength="40" required placeholder="northside" autocapitalize="off" spellcheck="false">
+            <small id="p-url">neurl-os.com/?p=</small>
+            <span class="err" id="e-slug"></span>
+          </div>
+        </div>
+        <div class="grid">
+          <div class="field">
+            <label for="p-kind">Type</label>
+            <select id="p-kind">
+              <option value="gym">Gym or studio (members)</option>
+              <option value="company">Company or team (employees)</option>
+              <option value="club">Coach or club (members)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="p-accent">Brand color</label>
+            <input id="p-accent" type="color" value="#38EE66">
+          </div>
+        </div>
+        <div class="field">
+          <label for="p-logo">Logo URL <small>(optional, must start with https://)</small></label>
+          <input id="p-logo" type="url" maxlength="400" placeholder="https://…/logo.png">
+          <span class="err" id="e-logo"></span>
+        </div>
+        <div class="field">
+          <label for="p-head">Message title <small>(optional, shown on members' dashboards)</small></label>
+          <input id="p-head" maxlength="140" placeholder="Recovery Mobility, Thursdays at 7pm">
+        </div>
+        <div class="field">
+          <label for="p-blurb">Message details <small>(optional)</small></label>
+          <textarea id="p-blurb" maxlength="300" placeholder="A good pick on lower-score days. Free for members."></textarea>
+        </div>
+        <div class="field">
+          <label><input type="checkbox" id="p-active" checked style="width:auto;margin-right:8px">Link is active</label>
+        </div>
+        <div class="status" id="f-status" role="status" aria-live="polite"></div>
+        <div class="btns">
+          <button class="pri" type="submit" id="save-btn">Save partner</button>
+          <button class="sec" type="button" id="new-btn">Clear form</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Partners</h2>
+      <div class="status" id="l-status" role="status" aria-live="polite"></div>
+      <div class="list" id="list"><p class="empty">Loading…</p></div>
+    </div>
+
+    <div class="card">
+      <h2>Backup</h2>
+      <p class="muted" style="margin-bottom:12px">Download every partner and opted-in email as one JSON file. Do this monthly and keep it somewhere safe.</p>
+      <div class="status" id="b-status" role="status" aria-live="polite"></div>
+      <div class="btns"><button class="sec" type="button" id="backup-btn">Download backup</button>
+      <button class="sec" type="button" id="logout-btn">Sign out</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+const API='/.netlify/functions/partners';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let pin=''; try{pin=sessionStorage.getItem('neurl:admin')||'';}catch(e){}
+let partners=[];
+
+async function call(body){
+  let res;
+  try{res=await fetch(API,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(Object.assign({pin},body))});}
+  catch(e){throw new Error('Can’t reach the server. Check your connection and try again.');}
+  let data={}; try{data=await res.json();}catch(e){}
+  if(res.status===401){signOut();throw new Error('That PIN is incorrect.');}
+  if(res.status===429) throw new Error('Too many attempts. Wait a minute and try again.');
+  if(!res.ok) throw new Error(data.error==='ADMIN_PIN not configured'?'The admin PIN isn’t set up in Netlify yet.':'Something went wrong ('+res.status+'). Try again.');
+  return data;
+}
+function status(id,msg,ok){const el=$(id);el.className='status '+(msg?(ok?'ok':'bad'):'');el.textContent=msg||'';}
+function signOut(){pin='';try{sessionStorage.removeItem('neurl:admin');}catch(e){} $('panel').hidden=true;$('login').hidden=false;}
+
+/* ---- sign in ---- */
+$('login').addEventListener('submit',async e=>{
+  e.preventDefault(); $('pin-err').textContent='';
+  const v=$('pin').value.trim();
+  if(!v){$('pin-err').textContent='Enter your PIN.';$('pin').setAttribute('aria-invalid','true');$('pin').focus();return;}
+  pin=v; $('login-btn').disabled=true;
+  try{await call({action:'list'}); try{sessionStorage.setItem('neurl:admin',pin);}catch(e){} openPanel();}
+  catch(err){$('pin-err').textContent=err.message;$('pin').setAttribute('aria-invalid','true');}
+  finally{$('login-btn').disabled=false;}
+});
+$('logout-btn').addEventListener('click',signOut);
+
+async function openPanel(){$('login').hidden=true;$('panel').hidden=false;await refresh();}
+async function refresh(){
+  status('l-status','');
+  try{const d=await call({action:'list'});partners=d.partners||[];renderList();}
+  catch(err){status('l-status',err.message);$('list').innerHTML='';}
+}
+function sw(p){
+  const c=/^#[0-9a-f]{6}$/i.test(p.accent||'')?p.accent:'#38EE66';
+  const ini=String(p.name||'P').split(/\s+/).slice(0,2).map(w=>w[0]||'').join('').toUpperCase();
+  return `<span class="sw" style="background:${c}">${/^https:\/\//.test(p.logoUrl||'')?`<img src="${esc(p.logoUrl)}" alt="${esc(p.name)} logo" onerror="this.replaceWith(document.createTextNode('${esc(ini)}'))">`:esc(ini)}</span>`;
+}
+function renderList(){
+  if(!partners.length){$('list').innerHTML='<p class="empty">No partners yet. Create your first one above.</p>';return;}
+  $('list').innerHTML=partners.map((p,i)=>`<div class="item" data-i="${i}">
+    ${sw(p)}
+    <div><b>${esc(p.name)}<span class="pill ${p.active===false?'off':''}">${p.active===false?'Inactive':esc(p.kind||'gym')}</span></b><code>neurl-os.com/?p=${esc(p.slug)}</code></div>
+    <div class="btns"><button class="sec" type="button" data-act="copy">Copy link</button><button class="sec" type="button" data-act="edit">Edit</button><button class="dang" type="button" data-act="del">Delete</button></div>
+  </div>`).join('');
+}
+$('list').addEventListener('click',async e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  const item=b.closest('.item'), p=partners[+item.dataset.i];
+  if(b.dataset.act==='copy'){
+    const url='https://neurl-os.com/?p='+p.slug;
+    try{await navigator.clipboard.writeText(url);b.textContent='Copied';}catch(err){b.textContent=url;}
+  }
+  if(b.dataset.act==='edit'){fill(p);window.scrollTo({top:0,behavior:'smooth'});$('p-name').focus();}
+  if(b.dataset.act==='del'){
+    if(item.querySelector('.confirm')) return;
+    const c=document.createElement('div'); c.className='confirm';
+    c.innerHTML=`<span>Delete ${esc(p.name)}? Their link will stop working.</span><button class="dang" type="button" data-act="yes">Delete</button><button class="sec" type="button" data-act="no">Keep</button>`;
+    item.appendChild(c);
+    c.addEventListener('click',async ev=>{
+      const x=ev.target.closest('button'); if(!x) return; ev.stopPropagation();
+      if(x.dataset.act==='no'){c.remove();return;}
+      x.disabled=true;
+      try{await call({action:'delete',slug:p.slug});status('l-status',p.name+' deleted.',true);await refresh();}
+      catch(err){status('l-status',err.message);x.disabled=false;}
+    });
+  }
+});
+
+/* ---- create / edit ---- */
+const slugify=s=>String(s).toLowerCase().trim().replace(/[^a-z0-9-]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').slice(0,40);
+let slugTouched=false, editing=null;
+$('p-name').addEventListener('input',()=>{if(!slugTouched&&!editing){$('p-slug').value=slugify($('p-name').value);showUrl();}});
+$('p-slug').addEventListener('input',()=>{slugTouched=true;showUrl();});
+function showUrl(){$('p-url').textContent='neurl-os.com/?p='+slugify($('p-slug').value);}
+function fill(p){
+  editing=p.slug; $('form-title').textContent='Edit '+p.name;
+  $('p-name').value=p.name||''; $('p-slug').value=p.slug; $('p-slug').readOnly=true;
+  $('p-kind').value=['gym','company','club'].includes(p.kind)?p.kind:'gym';
+  $('p-accent').value=/^#[0-9a-f]{6}$/i.test(p.accent||'')?p.accent:'#38EE66';
+  $('p-logo').value=p.logoUrl||''; $('p-head').value=p.headline||''; $('p-blurb').value=p.blurb||'';
+  $('p-active').checked=p.active!==false; showUrl(); status('f-status','');
+}
+function clearForm(){editing=null;slugTouched=false;$('pform').reset();$('p-slug').readOnly=false;$('form-title').textContent='New partner';showUrl();status('f-status','');['p-name','p-slug','p-logo'].forEach(id=>$(id).removeAttribute('aria-invalid'));['e-name','e-slug','e-logo'].forEach(id=>$(id).textContent='');}
+$('new-btn').addEventListener('click',clearForm);
+function invalid(id,eid,msg){$(id).setAttribute('aria-invalid',msg?'true':'false');$(eid).textContent=msg||'';return !!msg;}
+$('pform').addEventListener('submit',async e=>{
+  e.preventDefault(); status('f-status','');
+  const name=$('p-name').value.trim(), slug=slugify($('p-slug').value), logo=$('p-logo').value.trim();
+  const bad=[
+    invalid('p-name','e-name',name.length<2?'Enter the partner’s name.':''),
+    invalid('p-slug','e-slug',slug.length<2?'Use at least 2 letters or numbers.':(!editing&&partners.some(p=>p.slug===slug)?'That slug is already used. Pick another.':'')),
+    invalid('p-logo','e-logo',logo&&!/^https:\/\/\S+$/.test(logo)?'Logo links must start with https://':'')
+  ];
+  if(bad.some(Boolean)){document.querySelector('[aria-invalid=true]').focus();return;}
+  $('save-btn').disabled=true;
+  try{
+    const d=await call({action:'save',slug,name,kind:$('p-kind').value,accent:$('p-accent').value,logoUrl:logo,headline:$('p-head').value.trim(),blurb:$('p-blurb').value.trim(),active:$('p-active').checked});
+    status('f-status','Saved. Link: '+d.url,true); await refresh(); clearForm(); status('f-status','Saved. Link: '+d.url,true);
+  }catch(err){status('f-status',err.message);}
+  finally{$('save-btn').disabled=false;}
+});
+
+/* ---- backup ---- */
+$('backup-btn').addEventListener('click',async()=>{
+  status('b-status',''); $('backup-btn').disabled=true;
+  try{
+    const [a,b]=await Promise.all([call({action:'list'}),call({action:'emails'})]);
+    const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),partners:a.partners||[],emails:b.emails||[]},null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob), link=document.createElement('a');
+    link.href=url; link.download='neurl-os-backup-'+new Date().toISOString().slice(0,10)+'.json';
+    document.body.appendChild(link); link.click(); link.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000);
+    status('b-status','Backup downloaded: '+(a.partners||[]).length+' partners, '+(b.emails||[]).length+' emails.',true);
+  }catch(err){status('b-status',err.message);}
+  finally{$('backup-btn').disabled=false;}
+});
+
+showUrl();
+if(pin) openPanel().catch(()=>signOut());
+})();
+</script>
+</body>
+</html>

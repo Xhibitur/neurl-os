@@ -1,7 +1,7 @@
 {
-  "name": "NEURL-OS — Performance, Measured.",
+  "name": "NEURL-OS — Daily Performance Score",
   "short_name": "NEURL-OS",
-  "description": "A free 2-minute weekly calibration that turns your habits into a predictive model of your performance.",
+  "description": "A free 60-second daily reaction test scored against your own best, plus the habits that move it.",
   "start_url": "/?src=homescreen",
   "scope": "/",
   "display": "standalone",

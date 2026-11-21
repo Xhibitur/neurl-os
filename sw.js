@@ -1,13 +1,13 @@
 // Service Worker for NEURL-OS push notifications
-// Save as: public/sw.js (or deploy to root of neurl-os.com)
+// Lives at the site root so it can control the whole site.
 
 self.addEventListener('push', function (event) {
   if (!event.data) return;
   var data = event.data.json();
   var options = {
     body: data.body || "Your NEURL Score is ready.",
-    icon: "https://neurl-os.com/icon.png",  // Add your logo
-    badge: "https://neurl-os.com/badge.png",
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
     tag: "neurl-reminder",
     requireInteraction: false,
     data: { url: data.url || "https://neurl-os.com" }

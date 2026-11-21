@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin.html
+Disallow: /.netlify/
+
+Sitemap: https://neurl-os.com/sitemap.xml

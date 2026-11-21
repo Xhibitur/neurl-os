@@ -8,6 +8,16 @@
 <meta name="theme-color" content="#0A0C0F">
 <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="canonical" href="https://neurl-os.com/contact.html">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="NEURL-OS">
+<meta property="og:title" content="Contact — NEURL-OS">
+<meta property="og:url" content="https://neurl-os.com/contact.html">
+<meta property="og:image" content="https://neurl-os.com/og-image.jpg">
+<meta property="og:image:alt" content="NEURL-OS score dial showing a score of 89, with the line: Know your numbers. Own your best days.">
+<meta name="twitter:card" content="summary_large_image">
+<script src="/consent.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap');
 
@@ -178,6 +188,27 @@ footer.site nav a:hover,footer.site nav a:focus-visible{
   text-decoration:underline;
 }
 
+
+/* partner inquiry form */
+.form{display:flex;flex-direction:column;gap:18px;margin-top:8px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-weight:600;font-size:14.5px}
+.field .hint{color:var(--muted);font-size:13px}
+.field input,.field select,.field textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--surface);border:1px solid rgba(255,255,255,0.14);border-radius:10px;padding:12px 14px;width:100%}
+.field textarea{min-height:110px;resize:vertical}
+.field input:focus,.field select:focus,.field textarea:focus{outline:2px solid var(--green);outline-offset:1px;border-color:transparent}
+.field[data-invalid] input,.field[data-invalid] select,.field[data-invalid] textarea{border-color:#FF5C5C}
+.err{color:#FF8A8A;font-size:13.5px;min-height:0}
+.err:empty{display:none}
+.row2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.submit{font:inherit;font-weight:700;font-size:16px;background:var(--green);color:#06210F;border:0;border-radius:12px;padding:15px 22px;cursor:pointer;align-self:flex-start}
+.submit[disabled]{opacity:.6;cursor:progress}
+.status{border-radius:10px;padding:14px 16px;font-size:15px}
+.status.ok{background:#10261A;border:1px solid #1F4A2B}
+.status.bad{background:#2A1414;border:1px solid #5C2A2A}
+.status:empty{display:none}
+
 @media (prefers-reduced-motion:reduce){
   *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
 }
@@ -201,6 +232,66 @@ footer.site nav a:hover,footer.site nav a:focus-visible{
 
   <a class="email" href="mailto:info@neurl-os.com">info@neurl-os.com</a>
 
+  <h2 id="partners">Bring NEURL-OS to your gym or team</h2>
+  <p class="sub" style="margin-bottom:20px">Give your members or employees free daily scores and habit metrics, with your branding. You only ever see totals, never individual results.</p>
+
+  <form class="form" id="inquiry" name="partner-inquiry" method="POST" action="/contact.html" data-netlify="true" netlify-honeypot="bot-field" novalidate>
+    <input type="hidden" name="form-name" value="partner-inquiry">
+    <p class="hp" aria-hidden="true"><label>Leave this empty <input name="bot-field" tabindex="-1" autocomplete="off"></label></p>
+
+    <div class="row2">
+      <div class="field">
+        <label for="f-name">Your name</label>
+        <input id="f-name" name="name" autocomplete="name" required maxlength="80">
+        <span class="err" id="e-name"></span>
+      </div>
+      <div class="field">
+        <label for="f-email">Work email</label>
+        <input id="f-email" name="email" type="email" autocomplete="email" required maxlength="120">
+        <span class="err" id="e-email"></span>
+      </div>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label for="f-org">Gym, studio or company</label>
+        <input id="f-org" name="organization" autocomplete="organization" required maxlength="100">
+        <span class="err" id="e-org"></span>
+      </div>
+      <div class="field">
+        <label for="f-type">Type</label>
+        <select id="f-type" name="type" required>
+          <option value="">Choose one</option>
+          <option>Gym or studio</option>
+          <option>Company or team</option>
+          <option>Coach or club</option>
+          <option>Other</option>
+        </select>
+        <span class="err" id="e-type"></span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="f-size">How many people? <span class="hint">(optional)</span></label>
+      <select id="f-size" name="size">
+        <option value="">Not sure yet</option>
+        <option>Under 25</option>
+        <option>25–75</option>
+        <option>76–150</option>
+        <option>150+</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="f-msg">Anything we should know? <span class="hint">(optional)</span></label>
+      <textarea id="f-msg" name="message" maxlength="1000"></textarea>
+      <span class="hint" id="f-count">0 / 1000</span>
+    </div>
+
+    <div class="status" id="f-status" role="status" aria-live="polite"></div>
+    <button class="submit" type="submit" id="f-submit">Send inquiry</button>
+  </form>
+
 </div>
 </main>
 
@@ -211,10 +302,49 @@ footer.site nav a:hover,footer.site nav a:focus-visible{
       <a href="/privacy.html">Privacy</a>
       <a href="/terms.html">Terms</a>
       <a href="/contact.html" aria-current="page">Contact</a>
+      <a href="#" data-cookie-settings>Cookie settings</a>
     </nav>
     <p>&copy; 2026 Xhibitur LLC. All rights reserved. NEURL-OS is not a medical device and does not provide medical advice.</p>
   </div>
 </footer>
 
+
+<script>
+(function(){
+  var f=document.getElementById('inquiry'); if(!f) return;
+  var st=document.getElementById('f-status'), btn=document.getElementById('f-submit'), msg=document.getElementById('f-msg');
+  msg.addEventListener('input',function(){document.getElementById('f-count').textContent=msg.value.length+' / 1000';});
+  var rules=[
+    ['f-name','e-name',function(v){return v.trim().length>=2||'Enter your name.';}],
+    ['f-email','e-email',function(v){return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim())||'Enter a valid email, like you@company.com.';}],
+    ['f-org','e-org',function(v){return v.trim().length>=2||'Enter your gym, studio or company name.';}],
+    ['f-type','e-type',function(v){return !!v||'Choose a type.';}]
+  ];
+  function check(r){
+    var el=document.getElementById(r[0]), res=r[2](el.value), wrap=el.closest('.field'), e=document.getElementById(r[1]);
+    if(res===true){wrap.removeAttribute('data-invalid');el.removeAttribute('aria-invalid');e.textContent='';return true;}
+    wrap.setAttribute('data-invalid','');el.setAttribute('aria-invalid','true');el.setAttribute('aria-describedby',r[1]);e.textContent=res;return false;
+  }
+  rules.forEach(function(r){document.getElementById(r[0]).addEventListener('blur',function(){if(this.value)check(r);});});
+  f.addEventListener('submit',function(ev){
+    ev.preventDefault(); st.className='status'; st.textContent='';
+    var bad=rules.filter(function(r){return !check(r);});
+    if(bad.length){document.getElementById(bad[0][0]).focus();return;}
+    btn.disabled=true; btn.textContent='Sending…';
+    var body=new URLSearchParams(new FormData(f)).toString();
+    fetch('/',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body})
+      .then(function(r){if(!r.ok) throw new Error(r.status);
+        f.reset(); document.getElementById('f-count').textContent='0 / 1000';
+        st.className='status ok'; st.textContent='Thanks. We got your inquiry and will reply within 2 business days.';
+        window.neurlTrack&&window.neurlTrack('partner_inquiry',{});
+      })
+      .catch(function(){
+        st.className='status bad'; st.textContent='That didn\u2019t send. Check your connection and try again, or email info@neurl-os.com.';
+        window.neurlTrack&&window.neurlTrack('exception',{description:'inquiry_failed',fatal:false});
+      })
+      .finally(function(){btn.disabled=false;btn.textContent='Send inquiry';});
+  });
+})();
+</script>
 </body>
 </html>
