@@ -757,6 +757,20 @@ button:focus-visible,a:focus-visible{outline:2px solid #F2F4F7!important}
 /* logo: the newer NEURL-OS wordmark, drawn as text so it stays sharp on any screen */
 .brand b{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif!important;font-weight:800;font-size:21px!important;letter-spacing:.01em!important;line-height:1}
 .brand span{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif!important;font-size:9px!important;letter-spacing:.32em!important;color:#8A93A0!important;white-space:nowrap}
+
+/* ---------- teams: titles, crowns, Top Teams ---------- */
+.crown{display:inline-flex;align-items:center;gap:6px;align-self:flex-start;font-size:12px;font-weight:700;color:#FFD166;border:1px solid rgba(255,209,102,.45);background:rgba(255,209,102,.08);border-radius:100px;padding:4px 10px}
+.crown.sm{padding:1px 6px;vertical-align:1px}
+.ttls{display:flex;flex-direction:column;gap:8px}
+.ttl{display:grid;grid-template-columns:40px 1fr auto;gap:12px;align-items:center;padding:10px 12px;border-radius:12px;background:var(--surf2);border:1px solid var(--hair)}
+.ttl .md{width:40px;height:40px}.ttl .md svg{width:19px;height:19px}
+.ttl b{display:block;font-size:14px}.ttl span{font-size:12.5px;color:var(--soft)}
+.ttl span b{display:inline;font-size:12.5px}
+.ttl.me{border-color:var(--green)}
+.tt .bd-nm{display:flex;flex-direction:column;gap:3px}
+.mini-bar{display:block;height:4px;border-radius:2px;background:var(--hair);overflow:hidden;max-width:160px}
+.mini-bar u{display:block;height:100%;background:var(--green)}
+.bd-row.tt{grid-template-columns:26px minmax(0,1fr) auto}
 </style>
 </head>
 <body>
@@ -840,11 +854,13 @@ button:focus-visible,a:focus-visible{outline:2px solid #F2F4F7!important}
 
     <div class="card duel cta-card" id="duel-card" hidden></div>
     <button class="btn" id="start">Start today's test · 60 sec</button>
+    <p class="fine" id="start-note" hidden style="margin:-4px 0 0;text-align:center">Today’s score is locked in. Extra checks show how you change during the day.</p>
     <p class="streak" id="streak" hidden></p>
     <div class="action early" id="early" hidden></div>
     <div class="card duel cta-card" id="crew-inv" hidden></div>
     <div class="card board" id="board" hidden></div>
     <div class="card board crew" id="crew" hidden></div>
+    <div class="card board crew" id="top-teams" hidden></div>
     <div class="card exp" id="exp-card" hidden></div>
     <button class="hteaser" id="home-habits" hidden></button>
     <div class="card kit" id="kit" hidden></div>
@@ -868,7 +884,8 @@ button:focus-visible,a:focus-visible{outline:2px solid #F2F4F7!important}
           <li><b>Scored like the research version.</b> Speed counts responses per second, your slowest 10% of taps are scored on their own because tiredness shows there first, and taps under 0.1 seconds count as guesses.</li>
           <li><b>The test is measured against you.</b> Each day is compared with your own best result from the last 28 days, so 100% means you matched your best.</li>
           <li><b>Habits use simple guidelines.</b> For example, 7+ hours of sleep and about 150 active minutes a week. You need 3 logged days for habits to count.</li>
-          <li><b>7-test baseline.</b> During your first 7 tests you still get a score, compared with your best so far. After that, your peak locks in.</li>
+          <li><b>7-day baseline.</b> During your first 7 days you still get a score, compared with your best so far. After that, your peak locks in.</li>
+          <li><b>One score a day.</b> Your first test each day is your official score. Extra checks later that day show how you change, but don’t change the score.</li>
           <li><b>Saved on this device.</b> Phones add different delays, so using another phone or browser starts a new baseline.</li>
           <li><b>Feel vs. measured.</b> Rating how alert you feel before the test never changes your score. It shows whether your sense of alertness matches how you actually perform.</li>
           <li><b>Four states.</b> Peak is 81–100, Strong is 66–80, Recovering is 46–65 and Rebuild is 0–45. Your state shows as a tag under your score.</li>
@@ -1028,9 +1045,27 @@ function notice(id,html,kind,action){
 let storageOK=true;
 try{localStorage.setItem('neurl:probe','1');localStorage.removeItem('neurl:probe');}catch(e){storageOK=false;}
 if(!storageOK) notice('storage','Your browser is blocking storage, often because of private browsing. You can take the test, but results won’t be saved.','warn');
+/* One official test per day: the first one. Later tests that day are "extra checks".
+   They get their own result but never change the daily score, streak, baseline, badges or boards. */
+function oneTestPerDay(st){
+  const dk=t=>{const d=new Date(t);return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();};
+  const seen={}, keep=[]; let moved=0;
+  st.sessions.slice().sort((a,b)=>a.t-b.t).forEach(x=>{
+    const k=dk(x.t), first=seen[k];
+    if(!first){seen[k]=x;keep.push(x);return;}
+    if(!first.tags&&x.tags) first.tags=x.tags;
+    if(!first.wake&&x.wake) first.wake=x.wake;
+    st.extras.push(x); moved++;
+  });
+  st.sessions=keep; return moved;
+}
 function load(){
-  try{const s=JSON.parse(localStorage.getItem(KEY)); if(s&&Array.isArray(s.sessions)) return s;}catch(e){}
-  return {sessions:[]};
+  try{const s=JSON.parse(localStorage.getItem(KEY)); if(s&&Array.isArray(s.sessions)){
+    if(!Array.isArray(s.extras)) s.extras=[];
+    if(oneTestPerDay(s)) try{localStorage.setItem(KEY,JSON.stringify(s));}catch(e){}
+    return s;
+  }}catch(e){}
+  return {sessions:[],extras:[]};
 }
 function save(){
   try{localStorage.setItem(KEY,JSON.stringify(state));}
@@ -1124,7 +1159,7 @@ function band(p){
 function provisionalCopy(n){
   const left=BASELINE-n;
   if(n===1) return 'Your first test sets your starting point, so the test part scores 100%. Your next tests are compared with your best so far.';
-  return 'Your test is compared with your best so far. Scores often rise while you learn the test, so your true peak locks in after '+left+' more test'+(left===1?'':'s')+'.';
+  return 'Your test is compared with your best so far. Scores often rise while you learn the test, so your true peak locks in after '+left+' more day'+(left===1?'':'s')+' of testing.';
 }
 /* NEURL Score = 70% test performance + 30% habits over the last 7 days */
 const W_TEST=.7, W_HAB=.3;
@@ -1216,7 +1251,7 @@ function renderHome(){
   }else if(baseline){
     const x=neurlAt(n-1);
     ring($('ring'),x.score,'provisional');
-    $('hero-label').textContent='Baseline · test '+n+' of '+BASELINE;
+    $('hero-label').textContent='Baseline · day '+n+' of '+BASELINE;
     $('hero-title').textContent=n===1?'Starting point set':band(x.score)[0];
     $('hero-copy').textContent=provisionalCopy(n);
   }else{
@@ -1229,7 +1264,10 @@ function renderHome(){
   $('split').hidden=!n; if(n) $('split').innerHTML=splitHTML(neurlAt(n-1),n);
   $('dots').innerHTML=Array.from({length:BASELINE},(_,i)=>`<i class="${i<n?'on':''}"></i>`).join('');
   const testedToday=n&&new Date(L[n-1].t).toDateString()===new Date().toDateString();
-  $('start').textContent=testedToday?'Test again · 60 sec':"Start today's test · 60 sec";
+  $('start').textContent=testedToday?'Take an extra check · 60 sec':"Start today's test · 60 sec";
+  $('start').classList.toggle('btn-line',!!testedToday);
+  $('start').setAttribute('aria-describedby','start-note');
+  $('start-note').hidden=!testedToday;
   const a=n?actionFor(L[n-1]):null;
   $('home-action').hidden=!a; if(a) $('home-action').innerHTML=actionHTML(a);
   renderSponsor('home-sponsor');
@@ -1462,7 +1500,7 @@ function show(v){
   ['landing','home','stats','habits','goal','account','welcome','test','tags','result'].forEach(k=>$('view-'+k).hidden=k!==v);
   document.body.classList.toggle('testing',v==='test');
   if(v==='home'||v==='landing') renderDuelBanner();
-  if(v==='home'){renderBoard();renderCrew();}
+  if(v==='home'){renderBoard();renderCrew();renderTop();}
   if(v==='home'||v==='landing') renderCrewInvite();
   $('tabs').hidden=!(v==='home'||v==='stats'||v==='habits');
   ['home','stats','habits'].forEach(k=>$('tab-'+k).setAttribute('aria-selected',v===k));
@@ -1966,7 +2004,7 @@ const MED={
 };
 const BADGES=[
   {k:'first',name:'First test',d:'Take your first test.',ic:'bolt',c:'#38EE66',v:s=>s.n,goal:1},
-  {k:'baseline',name:'Baseline set',d:'Finish your 7-test baseline.',ic:'flag',c:'#38EE66',v:s=>s.n,goal:7},
+  {k:'baseline',name:'Baseline set',d:'Finish your 7-day baseline.',ic:'flag',c:'#38EE66',v:s=>s.n,goal:7},
   {k:'streak7',name:'On a roll',d:'Test 7 days in a row.',ic:'flame',c:'#FFA54F',v:s=>s.best,goal:7},
   {k:'streak30',name:'Unbreakable',d:'Test 30 days in a row.',ic:'flame',c:'#FFD166',v:s=>s.best,goal:30},
   {k:'peak',name:'Peak day',d:'Reach the Peak state (81+).',ic:'crown',c:'#38EE66',v:s=>s.peaks,goal:1},
@@ -1978,6 +2016,9 @@ const BADGES=[
   {k:'aware',name:'Self-aware',d:'Your feel matches your test 5 times.',ic:'eye',c:'#F27AD6',v:s=>s.aware,goal:5},
   {k:'challenge',name:'Challenger',d:'Hit 5 on-plan days in a challenge.',ic:'trophy',c:'#38EE66',v:s=>s.chDone,goal:1},
   {k:'improver',name:'Proven change',d:'Gain 5+ points in a challenge.',ic:'trophy',c:'#FFD166',v:s=>s.chWin,goal:1},
+  {k:'title',name:'Title winner',d:'Win a weekly title on your team.',ic:'crown',c:'#38EE66',v:s=>s.titles,goal:1},
+  {k:'title5',name:'Dynasty',d:'Win 5 weekly team titles.',ic:'crown',c:'#FFD166',v:s=>s.titles,goal:5},
+  {k:'topteam',name:'Top Team',d:'Finish top 3 on Top Teams.',ic:'trophy',c:'#FFD166',v:s=>s.crowns,goal:1},
   {k:'duel',name:'Duel winner',d:'Beat a friend in a duel.',ic:'swords',c:'#3DD9F5',v:s=>s.duelW,goal:1},
   {k:'duel5',name:'Duel champ',d:'Win 5 duels.',ic:'swords',c:'#FFD166',v:s=>s.duelW,goal:5}
 ];
@@ -1990,7 +2031,8 @@ function badgeStats(){
   return {n,best:streakInfo().best,peaks:scoreList().filter(x=>x.v>=81).length,
     clean:L.filter(s=>!s.lapses&&!s.errors).length, strong:L.filter(s=>s.drift!=null&&s.drift<=0).length,
     early:L.filter(s=>new Date(s.t).getHours()<8).length, aware,
-    chDone:H.filter(h=>(h.onDays||0)>=CH_TARGET).length, chWin:H.filter(h=>h.change>=5).length, duelW:D.w};
+    chDone:H.filter(h=>(h.onDays||0)>=CH_TARGET).length, chWin:H.filter(h=>h.change>=5).length, duelW:D.w,
+    titles:lsList('neurl:titles').length, crowns:lsList('neurl:crowns').length};
 }
 function badgeState(){const st=badgeStats();return BADGES.map(b=>{const v=Math.min(b.goal,b.v(st)||0);return {...b,cur:v,on:v>=b.goal};});}
 function seenBadges(){try{const v=JSON.parse(lsGet('neurl:badges'));return Array.isArray(v)?v:null;}catch(e){return null;}}
@@ -2178,8 +2220,10 @@ function typeInfo(){
   const srt=[...r].sort((x,y)=>y.v-x.v), spread=srt[0].v-srt[srt.length-1].v;
   const t=spread<8?TYPES.find(x=>x.k==='allround'):TYPES.find(x=>x.stat===srt[0].a.k);
   const slot=s=>{const h=new Date(s.t).getHours();return h<10?'am':h>=18?'pm':'mid';}, by={};
-  L.slice(-28).forEach(s=>{(by[slot(s)]||=[]).push(perf(s));});
-  const m=k=>by[k]&&by[k].length>=3?avg(by[k]):null, all=avg(L.slice(-28).map(perf));
+  /* extra checks count here: testing at different times is how your best time of day shows up */
+  const since=L[Math.max(0,L.length-28)].t, TL=L.slice(-28).concat((state.extras||[]).filter(e=>e.t>=since));
+  TL.forEach(s=>{(by[slot(s)]||=[]).push(perf(s));});
+  const m=k=>by[k]&&by[k].length>=3?avg(by[k]):null, all=avg(TL.map(perf));
   let time=null;
   if(Object.keys(by).filter(k=>by[k].length>=3).length>=2){
     time=m('am')!=null&&m('am')-all>=2?'early':m('pm')!=null&&m('pm')-all>=2?'owl':'allday';
@@ -2191,8 +2235,8 @@ function tyIcon(k,set){return `<svg viewBox="0 0 24 24" fill="none" stroke="curr
 function typeAll(cur){return `<div class="ty-all" aria-label="All six types">${TYPES.map(t=>`<div class="${t.k===cur?'cur':''}" style="--mc:${t.c}"><span class="mini">${tyIcon(t.k)}</span>${t.name}</div>`).join('')}</div>`;}
 function typeCard(){
   const x=typeInfo();
-  if(!x.ready) return `<div class="card type" style="--tc:#38EE66"><div class="trendhead" style="margin:0"><div class="label">Your type</div><span>Unlocks after test ${BASELINE}</span></div>
-    <div class="ty-hero"><span class="ty-md lock">${tyIcon('allround')}</span><div><b>${x.left} test${x.left===1?'':'s'} to go</b><span style="font-style:normal">Your type comes from how you actually perform: your strongest stat and your best time of day.</span></div></div>${typeAll(null)}</div>`;
+  if(!x.ready) return `<div class="card type" style="--tc:#38EE66"><div class="trendhead" style="margin:0"><div class="label">Your type</div><span>Unlocks after day ${BASELINE}</span></div>
+    <div class="ty-hero"><span class="ty-md lock">${tyIcon('allround')}</span><div><b>${x.left} day${x.left===1?'':'s'} to go</b><span style="font-style:normal">Your type comes from how you actually perform: your strongest stat and your best time of day.</span></div></div>${typeAll(null)}</div>`;
   if(!user) return `<div class="card type" style="--tc:#38EE66"><div class="trendhead" style="margin:0"><div class="label">Your type is ready</div><span>Free account</span></div>
     <div class="ty-hero"><span class="ty-md lock" style="font-size:30px;font-weight:800">?</span><div><b>Which of the six are you?</b><span style="font-style:normal">Create a free account to reveal your type. It keeps your progress and lets you compare with people your age.</span></div></div>
     ${typeAll(null)}<button class="btn" type="button" data-type="login">Reveal my type</button></div>`;
@@ -2250,7 +2294,7 @@ function boardRanked(d,tab){
 function boardWin(){
   if(!(partner&&joined&&partner.board&&boardData&&boardData.me)) return [];
   const r=boardRanked(boardData,'score'), i=r.findIndex(m=>m.me);
-  return i>=0?[`#${i+1} on the ${partner.name} board this week`]:[];
+  return i>=0?[`#${i+1} on the ${partner.name} club board this week`]:[];
 }
 const hueOf=n=>[...String(n)].reduce((a,c)=>(a*31+c.charCodeAt(0))%360,7);
 const CREW_IC='<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>';
@@ -2265,8 +2309,9 @@ function boardListHTML(d,tab){
 }
 const BOARD_WHY={score:'Ranked by average NEURL Score this week, minimum 3 tests. Everyone is scored against their own best, so anyone can top it.',imp:'Ranked by change in your average score from last week, minimum 3 tests.',streak:'Ranked by current daily streak.'};
 
-/* ---------- crews: private friend boards. Needs a free account. ---------- */
-let crewData=null, crewTab='score', crewLoaded=null;
+/* ---------- teams: private friend boards with weekly titles, plus a public Top Teams ranking.
+   Needs a free account. (Saved as "crews" behind the scenes, so older invite links still work.) ---------- */
+let crewData=null, crewTab='score', crewLoaded=null, topData=null, topAt=0;
 const weekId=()=>Math.round(weekStart()/864e5);
 function myCrew(){try{const c=JSON.parse(lsGet('neurl:crew'));return c&&/^[a-z0-9]{6}$/.test(c.code)?c:null;}catch(e){return null;}}
 function setCrew(c){c?lsSet('neurl:crew',JSON.stringify(c)):lsSet('neurl:crew','');}
@@ -2274,86 +2319,152 @@ async function postJSON(url,body){
   try{const r=await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});return r.ok?await r.json():null;}catch(e){return null;}
 }
 async function fetchCrew(code){try{const r=await fetch('/.netlify/functions/crews?code='+code+'&id='+anonId());return r.ok?await r.json():null;}catch(e){return null;}}
+async function fetchTop(){try{const c=myCrew();const r=await fetch('/.netlify/functions/crews?top=1'+(c?'&code='+c.code:''));return r.ok?await r.json():null;}catch(e){return null;}}
 function crewNick(){return cleanName(lsGet('neurl:duel_name')||firstName()||'Me')||'Me';}
 async function crewCall(body){return postJSON('/.netlify/functions/crews',{id:anonId(),...body});}
 function crewReport(){
   const c=myCrew(); if(!c||!user) return; const w=myWeek();
-  crewCall({action:'report',code:c.code,week:weekId(),tests:w.tests,score:w.score,imp:w.imp,streak:w.streak}).then(()=>{crewLoaded=null;});
+  crewCall({action:'report',code:c.code,week:weekId(),tests:w.tests,score:w.score,imp:w.imp,streak:w.streak,base:state.sessions.length>=BASELINE}).then(()=>{crewLoaded=null;topAt=0;});
 }
-function crewInviteLink(c){return 'https://neurl-os.com/?crew='+c.code;}
+function crewInviteLink(c){return 'https://neurl-os.com/?team='+c.code;}
 function shareCrew(btn){
-  const c=myCrew(); if(!c) return; const link=crewInviteLink(c), text=`Join my crew “${c.name}” on NEURL-OS. A 60-second daily test, and a weekly board for us.`;
-  track('crew_invite',{});
-  if(navigator.share){navigator.share({title:'Join my NEURL-OS crew',text,url:link}).catch(()=>{});return;}
+  const c=myCrew(); if(!c) return; const link=crewInviteLink(c), text=`Join my team “${c.name}” on NEURL-OS. A 60-second daily brain test, a weekly board, and titles to win.`;
+  track('team_invite',{});
+  if(navigator.share){navigator.share({title:'Join my NEURL-OS team',text,url:link}).catch(()=>{});return;}
   try{navigator.clipboard.writeText(text+' '+link).then(()=>{btn.textContent='Invite link copied';},()=>{btn.textContent=link;});}catch(e){btn.textContent=link;}
 }
+const icSVG=(paths,sz)=>`<svg viewBox="0 0 24 24" width="${sz||18}" height="${sz||18}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
 function gateHTML(title,body,perks,btn,attr){
-  return `<div class="bd-head"><span class="crew-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${CREW_IC}</svg></span><div><div class="label" style="color:var(--green)">${title}</div></div></div>
+  return `<div class="bd-head"><span class="crew-ic" aria-hidden="true">${icSVG(CREW_IC)}</span><div><div class="label" style="color:var(--green)">${title}</div></div></div>
     <b class="t" style="font-size:16px;line-height:1.35">${body}</b>
     <ul class="perks">${perks.map(x=>`<li>${x}</li>`).join('')}</ul>
     <button class="btn" type="button" ${attr}>${btn}</button>
     <p class="fine" style="margin:0">Free. Your test results stay on this device. Boards show only your nickname and weekly numbers.</p>`;
 }
-const FRIEND_PERKS=['Start a crew and invite friends with a link','See your crew’s weekly leaderboard','Send duels: friends get 3 days to beat your score'];
+const FRIEND_PERKS=['Start a team and invite friends with a link','Compete on your team’s weekly board and win titles','Send duels: friends get 3 days to beat your score'];
+
+/* weekly titles, decided from last week's numbers. Score titles only count people past their 7-day baseline. */
+const TITLES=[
+  {k:'sharpest',name:'Sharpest',d:'Best average score on the team last week.',ic:'bolt',fmt:v=>v+' avg'},
+  {k:'improved',name:'Most Improved',d:'Biggest gain on the team last week.',ic:'finish',fmt:v=>'+'+v},
+  {k:'iron',name:'Iron Mind',d:'Most days tested on the team last week.',ic:'flame',fmt:v=>v+' day'+(v===1?'':'s')}
+];
+function weekTitles(d){
+  const all=d.members.concat(d.me?[{...d.me,me:true}]:[]).filter(m=>m.prev);
+  if(all.length<2) return null;
+  const pick=(f,ok)=>{const c=all.filter(ok);if(!c.length)return null;const best=Math.max(...c.map(f));return {v:best,who:c.filter(m=>f(m)===best)};};
+  return {
+    sharpest:pick(m=>m.prev.score,m=>m.prev.base&&m.prev.tests>=3&&m.prev.score!=null),
+    improved:pick(m=>m.prev.imp,m=>m.prev.base&&m.prev.tests>=3&&m.prev.imp!=null&&m.prev.imp>0),
+    iron:pick(m=>m.prev.tests,m=>m.prev.tests>0)
+  };
+}
+function lsList(k){try{const v=JSON.parse(lsGet(k));return Array.isArray(v)?v:[];}catch(e){return [];}}
+/* remember titles and crowns you won, so they count toward badges */
+function recordWins(d,c,T){
+  const w=d.week-7, titles=lsList('neurl:titles'), crowns=lsList('neurl:crowns'); let changed=false, fresh=[];
+  if(T) TITLES.forEach(t=>{const r=T[t.k]; if(r&&r.who.some(m=>m.me)&&!titles.some(x=>x.w===w&&x.k===t.k&&x.team===c.code)){titles.push({w,k:t.k,team:c.code});fresh.push(t.k);changed=true;}});
+  if(d.crown&&!crowns.some(x=>x.w===w&&x.team===c.code)){crowns.push({w,rank:d.crown,team:c.code});changed=true;}
+  if(changed){lsSet('neurl:titles',JSON.stringify(titles));lsSet('neurl:crowns',JSON.stringify(crowns));fresh.forEach(k=>track('title_won',{title:k}));}
+}
+function titleBadge(t,team){return {k:'title-'+t.k,name:t.name,d:`${t.d.replace('the team',team)}`,ic:t.ic,c:'#38EE66'};}
+function titlesHTML(T,teamName){
+  if(!T) return '';
+  const rows=TITLES.map(t=>{const r=T[t.k];
+    const who=r?r.who.map(m=>m.me?'<b style="color:var(--green)">You</b>':esc(m.name)).join(' & '):'<span style="color:var(--muted)">No winner</span>';
+    const mine=r&&r.who.some(m=>m.me);
+    return `<div class="ttl${mine?' me':''}">${medal({ic:t.ic,c:'#38EE66'},!!r)}<div><b>${t.name}</b><span>${who}${r?' · '+t.fmt(r.v):''}</span></div>${mine?`<button class="btn btn-sm" type="button" data-title="${t.k}">Share</button>`:''}</div>`;}).join('');
+  return `<div class="ttls"><div class="label">Last week’s titles</div>${rows}<div class="duel-link" id="ttl-out" hidden></div></div>`;
+}
+const CROWN_IC='<path d="M3 19h18M4 8l4 4 4-7 4 7 4-4-2 11H6z"/>';
 function renderCrew(){
   const el=$('crew'), n=state.sessions.length, c=myCrew();
   if(!n){el.hidden=true;return;}
   el.hidden=false;
   if(!user){
-    el.innerHTML=gateHTML('Friends','Challenge your friends and compete on your own board.',FRIEND_PERKS,'Create free account','data-crew="login"');
+    el.innerHTML=gateHTML('Teams','Get your friends on a team and compete for weekly titles.',FRIEND_PERKS,'Create free account','data-crew="login"');
   } else if(!c){
-    el.innerHTML=`<div class="bd-head"><span class="crew-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${CREW_IC}</svg></span><div><b>Start a crew</b><span>A private weekly board for you and your friends</span></div></div>
-      <div class="bd-join"><div class="field"><label for="crew-name">Crew name</label><input id="crew-name" maxlength="30" placeholder="Harlem Morning Crew"></div><button class="btn btn-sm" type="button" data-crew="create">Start crew</button></div>
+    el.innerHTML=`<div class="bd-head"><span class="crew-ic" aria-hidden="true">${icSVG(CREW_IC)}</span><div><b>Start a team</b><span>A private weekly board for you and your friends</span></div></div>
+      <div class="bd-join"><div class="field"><label for="crew-name">Team name</label><input id="crew-name" maxlength="30" placeholder="Morning Minds"></div><button class="btn btn-sm" type="button" data-crew="create">Start team</button></div>
+      <label class="check" style="font-size:13px"><input type="checkbox" id="crew-public" checked> Show our team name on Top Teams</label>
       <p class="fine" style="margin:0" id="crew-msg">You’ll get an invite link to send. Friends need a free account to join.</p>`;
   } else {
     if(crewLoaded!==c.code){crewLoaded=c.code;crewData=null;fetchCrew(c.code).then(d=>{crewData=d||{name:c.name,members:[],me:null,error:true};renderCrew();});}
     const d=crewData;
-    const head=`<div class="bd-head"><span class="crew-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${CREW_IC}</svg></span><div><b>${esc(c.name)}</b><span>Your crew · this week · resets Monday</span></div></div>`;
-    if(!d){el.innerHTML=head+`<p class="fine" style="margin:0">Loading your crew…</p>`;return;}
-    if(d.error){el.innerHTML=head+`<p class="fine" style="margin:0">Couldn’t load your crew right now. Your test still counts.</p><div class="crew-actions"><button class="btn btn-line btn-sm" type="button" data-crew="retry">Try again</button></div>`;wireCrew(el);return;}
+    const crown=d&&d.crown?`<span class="crown">${icSVG(CROWN_IC,14)} #${d.crown} Top Team last week</span>`:'';
+    const head=`<div class="bd-head"><span class="crew-ic" aria-hidden="true">${icSVG(CREW_IC)}</span><div><b>${esc(c.name)}</b><span>Your team · this week · resets Monday</span></div></div>${crown}`;
+    if(!d){el.innerHTML=head+`<p class="fine" style="margin:0">Loading your team…</p>`;return;}
+    if(d.error){el.innerHTML=head+`<p class="fine" style="margin:0">Couldn’t load your team right now. Your test still counts.</p><div class="crew-actions"><button class="btn btn-line btn-sm" type="button" data-crew="retry">Try again</button></div>`;wireCrew(el);return;}
+    const T=weekTitles(d); recordWins(d,c,T);
     const L=boardListHTML(d,crewTab), size=d.members.length+(d.me?1:0), total=d.members.concat(d.me?[d.me]:[]).reduce((a,m)=>a+(m.tests||0),0), goal=Math.max(5,size*5), pct=Math.min(100,Math.round(total/goal*100));
     el.innerHTML=head+`
-      <div class="bd-goal"><span><b style="color:var(--fg)">Crew goal:</b> ${total} of ${goal} tests this week · ${size} member${size===1?'':'s'}</span><div class="bar" role="img" aria-label="${pct}% of the crew goal"><i style="width:${pct}%"></i></div></div>
-      <div class="seg" role="group" aria-label="Crew board">${BOARD_TABS.map(([k,l])=>`<button type="button" data-ct="${k}" aria-pressed="${k===crewTab}">${l}</button>`).join('')}</div>
+      <div class="bd-goal"><span><b style="color:var(--fg)">Team goal:</b> ${total} of ${goal} tests this week · ${size} member${size===1?'':'s'}</span><div class="bar" role="img" aria-label="${pct}% of the team goal"><i style="width:${pct}%"></i></div></div>
+      ${titlesHTML(T,c.name)}
+      <div class="seg" role="group" aria-label="Team board">${BOARD_TABS.map(([k,l])=>`<button type="button" data-ct="${k}" aria-pressed="${k===crewTab}">${l}</button>`).join('')}</div>
       <ol class="bd-list">${L.html}</ol>
-      ${size<2?'<p class="fine" style="margin:0;color:var(--green)">Your board is just you so far. Invite a few friends to make it a race.</p>':`<p class="fine" style="margin:0">${BOARD_WHY[crewTab]}</p>`}
-      <div class="crew-actions"><button class="btn${size<2?'':' btn-line'} btn-sm" type="button" data-crew="invite">Invite friends</button><button class="link" type="button" data-crew="leave" style="margin-left:auto">Leave crew</button></div>`;
+      ${size<2?'<p class="fine" style="margin:0;color:var(--green)">Your board is just you so far. Invite a few friends to make it a race.</p>':`<p class="fine" style="margin:0">${BOARD_WHY[crewTab]} Titles are handed out every Monday.</p>`}
+      <div class="crew-actions"><button class="btn${size<2?'':' btn-line'} btn-sm" type="button" data-crew="invite">Invite friends</button>
+        ${d.owner?`<button class="link" type="button" data-crew="vis">${d.public?'Hide from Top Teams':'Show on Top Teams'}</button>`:''}
+        <button class="link" type="button" data-crew="leave" style="margin-left:auto">Leave team</button></div>`;
+    el.querySelectorAll('[data-title]').forEach(b=>b.onclick=()=>{const t=TITLES.find(x=>x.k===b.dataset.title);shareBadge(titleBadge(t,c.name),b,$('ttl-out'));});
   }
   wireCrew(el);
 }
 function wireCrew(el){
   el.querySelectorAll('[data-ct]').forEach(b=>b.onclick=()=>{crewTab=b.dataset.ct;renderCrew();});
   const on=(k,f)=>{const b=el.querySelector(`[data-crew=${k}]`);if(b)b.onclick=()=>f(b);};
-  on('login',()=>{track('friends_gate',{from:'crew'});openAccount('home');});
+  on('login',()=>{track('friends_gate',{from:'team'});openAccount('home');});
   on('retry',()=>{crewLoaded=null;renderCrew();});
   on('invite',b=>shareCrew(b));
-  on('leave',async()=>{const c=myCrew();if(!c)return;await crewCall({action:'leave',code:c.code});setCrew(null);crewLoaded=null;track('crew_leave',{});renderCrew();});
+  on('vis',async b=>{const c=myCrew();if(!c||!crewData)return;b.disabled=true;const r=await crewCall({action:'visibility',code:c.code,public:!crewData.public});if(r){crewData.public=r.public;topAt=0;track('team_visibility',{public:r.public});}renderCrew();renderTop();});
+  on('leave',async()=>{const c=myCrew();if(!c)return;await crewCall({action:'leave',code:c.code});setCrew(null);crewLoaded=null;topAt=0;track('team_leave',{});renderCrew();renderTop();});
   on('create',async b=>{
     const nm=cleanName($('crew-name').value); if(!nm){$('crew-name').focus();return;}
     b.disabled=true;b.textContent='Starting…';
-    const r=await crewCall({action:'create',name:nm,nick:crewNick()});
-    if(!r||!r.code){b.disabled=false;b.textContent='Start crew';$('crew-msg').textContent='Couldn’t start your crew. Check your connection and try again.';$('crew-msg').style.color='var(--amber)';return;}
-    setCrew({code:r.code,name:r.name||nm});track('crew_create',{});crewReport();crewLoaded=null;renderCrew();
+    const r=await crewCall({action:'create',name:nm,nick:crewNick(),public:$('crew-public').checked});
+    if(!r||!r.code){b.disabled=false;b.textContent='Start team';$('crew-msg').textContent='Couldn’t start your team. Check your connection and try again.';$('crew-msg').style.color='var(--amber)';return;}
+    setCrew({code:r.code,name:r.name||nm});track('team_create',{public:$('crew-public').checked});crewReport();crewLoaded=null;renderCrew();
   });
 }
+
+/* ---------- Top Teams: public weekly ranking of teams that opted in ---------- */
+function renderTop(){
+  const el=$('top-teams'); if(!el) return;
+  if(!state.sessions.length){el.hidden=true;return;}
+  if(Date.now()-topAt>5*60*1000){topAt=Date.now();fetchTop().then(d=>{topData=d;renderTop();});}
+  const d=topData;
+  if(!d||!Array.isArray(d.teams)||d.teams.length<3){el.hidden=true;return;}
+  el.hidden=false;
+  const c=myCrew(), mine=d.mine, show=d.teams.slice(0,mine>9?9:10).map((t,i)=>[t,i]).concat(mine>9?[[d.teams[mine],mine]]:[]);
+  const row=([t,i])=>`<li class="bd-row tt${i===mine?' me':''}"${i===mine?' aria-current="true"':''}><span class="bd-rk${i<3?' r'+(i+1):''}">${i+1}</span>
+    <span class="bd-nm"><b>${esc(t.name)}${t.crown?` <span class="crown sm" title="#${t.crown} last week">${icSVG(CROWN_IC,12)}</span>`:''}</b><span>${t.size} members · ${t.tests} of ${t.goal} tests</span><i class="mini-bar"><u style="width:${t.fill}%"></u></i></span>
+    <span class="bd-val">${t.fill}%<small>${t.avg!=null?'avg '+t.avg:'team bar'}</small></span></li>`;
+  const last=(d.last||[]).length?`<p class="fine" style="margin:0">${icSVG(CROWN_IC,12)} Last week’s Top Teams: ${d.last.map((t,i)=>`#${i+1} ${esc(t.name)}`).join(' · ')}</p>`:'';
+  el.innerHTML=`<div class="bd-head"><span class="crew-ic" aria-hidden="true">${icSVG(CROWN_IC)}</span><div><b>Top Teams</b><span>This week · ${d.count} teams · resets Monday</span></div></div>
+    <ol class="bd-list">${show.map(row).join('')}</ol>${last}
+    <p class="fine" style="margin:0">Ranked by how full each team’s bar is (5 tests per person), then average score. The top 3 get a crown next week.</p>
+    ${c?'':`<button class="btn btn-sm" type="button" id="tt-start">${user?'Start your team':'Create free account to start a team'}</button>`}`;
+  if($('tt-start')) $('tt-start').onclick=()=>{if(!user){openAccount('home');return;} $('crew').scrollIntoView({block:'center',behavior:'smooth'});const i=$('crew-name');if(i)setTimeout(()=>i.focus(),400);};
+}
+
 function crewInvite(){try{return JSON.parse(lsGet('neurl:crew_invite'))||null;}catch(e){return null;}}
 function renderCrewInvite(){
   const inv=crewInvite(), c=myCrew(), show=!!(inv&&(!c||c.code!==inv.code));
   ['crew-inv','l-crew-inv'].forEach(id=>{
     const el=$(id); el.hidden=!show; if(!show) return;
-    el.innerHTML=`<div class="trendhead" style="margin:0"><div class="label">Crew invite</div><button class="link" type="button" data-ci="no" style="padding:0;font-size:12px">No thanks</button></div>
-      <div class="duel-who"><span class="crew-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${CREW_IC}</svg></span><b class="t">You’re invited to join ${inv.name?'“'+esc(inv.name)+'”':'a crew'}.</b></div>
-      <p>A private weekly board for you and your friends.${c?' Joining replaces your current crew.':''}${user?'':' Create a free account to join.'}</p>
-      <button class="btn${id==='crew-inv'?' btn-sm':''}" type="button" data-ci="go">${user?'Join crew':'Create free account'}</button>
+    el.innerHTML=`<div class="trendhead" style="margin:0"><div class="label">Team invite</div><button class="link" type="button" data-ci="no" style="padding:0;font-size:12px">No thanks</button></div>
+      <div class="duel-who"><span class="crew-ic" aria-hidden="true">${icSVG(CREW_IC)}</span><b class="t">You’re invited to join ${inv.name?'“'+esc(inv.name)+'”':'a team'}.</b></div>
+      <p>A private weekly board for you and your friends, with titles every Monday.${c?' Joining replaces your current team.':''}${user?'':' Create a free account to join.'}</p>
+      <button class="btn${id==='crew-inv'?' btn-sm':''}" type="button" data-ci="go">${user?'Join team':'Create free account'}</button>
       <p class="fine" style="margin:0" data-ci="msg"></p>`;
     el.querySelector('[data-ci=no]').onclick=()=>{lsSet('neurl:crew_invite','');renderCrewInvite();};
-    el.querySelector('[data-ci=go]').onclick=async b=>{
-      if(!user){track('friends_gate',{from:'crew_invite'});openAccount(id==='crew-inv'?'home':'landing');return;}
+    el.querySelector('[data-ci=go]').onclick=async()=>{
+      if(!user){track('friends_gate',{from:'team_invite'});openAccount(id==='crew-inv'?'home':'landing');return;}
       const btn=el.querySelector('[data-ci=go]'); btn.disabled=true;
       if(c) await crewCall({action:'leave',code:c.code});
       const r=await crewCall({action:'join',code:inv.code,nick:crewNick()});
-      if(!r){btn.disabled=false;el.querySelector('[data-ci=msg]').textContent='Couldn’t join. The link may be old, or the crew is full.';return;}
-      setCrew({code:inv.code,name:r.name||inv.name||'Your crew'});lsSet('neurl:crew_invite','');track('crew_join',{});crewReport();crewLoaded=null;renderCrewInvite();renderCrew();
+      if(!r){btn.disabled=false;el.querySelector('[data-ci=msg]').textContent='Couldn’t join. The link may be old, or the team is full.';return;}
+      setCrew({code:inv.code,name:r.name||inv.name||'Your team'});lsSet('neurl:crew_invite','');track('team_join',{});crewReport();crewLoaded=null;renderCrewInvite();renderCrew();
     };
   });
 }
@@ -2373,12 +2484,12 @@ function renderBoard(){
   const pct=Math.min(100,Math.round(d.total/d.goal*100));
   const why=BOARD_WHY[boardTab];
   const mine=d.me?(meI>=0?`You’re #${meI+1} of ${rows.length}.`:(boardTab==='streak'?'Test today to start a streak.':`Take ${Math.max(0,3-d.me.tests)} more test${3-d.me.tests===1?'':'s'} this week to get ranked.`)):'';
-  el.innerHTML=`<div class="bd-head">${monoHTML(partner)}<div><b>${esc(partner.name)} board</b><span>This week · resets Monday${mine?' · '+mine:''}</span></div></div>
+  el.innerHTML=`<div class="bd-head">${monoHTML(partner)}<div><b>${esc(partner.name)} club board</b><span>This week · resets Monday${mine?' · '+mine:''}</span></div></div>
     <div class="bd-goal"><span><b style="color:var(--fg)">Team goal:</b> ${d.total} of ${d.goal} tests this week</span><div class="bar" role="img" aria-label="${pct}% of the team goal"><i style="width:${pct}%"></i></div></div>
     <div class="seg" role="group" aria-label="Board">${BOARD_TABS.map(([k,l])=>`<button type="button" data-bt="${k}" aria-pressed="${k===boardTab}">${l}</button>`).join('')}</div>
     <ol class="bd-list">${top}</ol>
     <p class="fine" style="margin:0">${why}</p>
-    ${d.me?'':!user?`<button class="btn btn-sm" type="button" id="bd-login">Create free account to join</button><p class="fine" style="margin:0">Free. Only your nickname and weekly numbers are shown.</p>`:`<div class="bd-join"><div class="field"><label for="bd-name">Nickname</label><input id="bd-name" maxlength="20" autocomplete="nickname" value="${esc(lsGet('neurl:duel_name')||'')}"></div><button class="btn btn-sm" type="button" id="bd-go">Join the board</button></div>
+    ${d.me?'':!user?`<button class="btn btn-sm" type="button" id="bd-login">Create free account to join</button><p class="fine" style="margin:0">Free. Only your nickname and weekly numbers are shown.</p>`:`<div class="bd-join"><div class="field"><label for="bd-name">Nickname</label><input id="bd-name" maxlength="20" autocomplete="nickname" value="${esc(lsGet('neurl:duel_name')||'')}"></div><button class="btn btn-sm" type="button" id="bd-go">Join the club board</button></div>
       <p class="fine" style="margin:0">Only your nickname and weekly numbers are shown. Never your habit answers.</p>`}`;
   el.querySelectorAll('[data-bt]').forEach(b=>b.onclick=()=>{boardTab=b.dataset.bt;renderBoard();track('board_tab',{tab:boardTab});});
   if($('bd-login')) $('bd-login').onclick=()=>{track('friends_gate',{from:'board'});openAccount('home');};
@@ -2779,6 +2890,12 @@ function finish(){
   const k=Math.max(1,Math.round(r.length*0.1)), slow10=Math.round(avg(r.slice(-k)));
   pending={t:Date.now(),feel:T.feel||null,median,sd,speed,slow10,drift,lapses:r.filter(v=>v>LAPSE).length,errors:T.falseStarts+T.commissions+T.guesses,guesses:T.guesses,
     device:(navigator.userAgent.match(/iPhone|iPad|Android|Mac|Windows|Linux/)||['Other'])[0]};
+  const Ls=state.sessions;
+  if(Ls.length&&dayKey(Ls[Ls.length-1].t)===dayKey(pending.t)){
+    state.extras.push(pending); save(); T=null;
+    track('extra_check',{checks_today:state.extras.filter(e=>dayKey(e.t)===dayKey(pending.t)).length});
+    renderExtra(pending); pending=null; return;
+  }
   state.sessions.push(pending); save(); T=null;
   const n=state.sessions.length;
   track('test_complete',{test_number:n,streak:streakInfo().cur,performance:pctOfPeak(state.sessions,n-1),baseline:n<BASELINE,duration_sec:Math.round((Date.now()-testStarted)/1000),partner:partner?partner.slug:'none'});
@@ -2850,7 +2967,7 @@ function renderResult(s){
   $('split2').hidden=false; $('split2').innerHTML=splitHTML(x,n);
   if(baseline){
     ring($('ring2'),p,'provisional');
-    $('r-label').textContent='Baseline · test '+n+' of '+BASELINE;
+    $('r-label').textContent='Baseline · day '+n+' of '+BASELINE;
     $('r-title').textContent=n===1?'Starting point set':band(p)[0];
     $('r-copy').textContent=provisionalCopy(n);
   }else{
@@ -2872,7 +2989,13 @@ function renderResult(s){
   renderEarly('r-early'); renderPushCard(); renderFeelResult();
   const xe=expGet(); $('r-exp').hidden=!xe; if(xe) renderExp('r-exp');
   $('r-login').hidden=!!(user||n<2||lsGet('neurl:login_prompt_dismissed'))||!$('r-push').hidden;
-  const bm=bestOf(L,'median'), pt=parts(s);
+  $('r-rows').innerHTML=testRows(s);
+  renderShareCard(p);
+  show('result');
+  $('r-title').focus({preventScroll:true});
+}
+function testRows(s){
+  const L=state.sessions, bm=bestOf(L.concat(state.extras||[]),'median'), pt=parts(s);
   const rows=[
     ['Speed',s.median+' ms', s.median<=bm?'New personal best.':'Your best is '+bm+' ms.'],
     ['Slowest taps',slowOf(s)+' ms', pt.slowest>=70?'Even your slowest taps were quick.':pt.slowest>=45?'A few slow taps. Normal for most people.':'Several slow taps. Often an early sign of tiredness.'],
@@ -2883,8 +3006,29 @@ function renderResult(s){
   const aw=hoursAwake(s);
   if(aw!==null) rows.push(['Time awake',fmtAwake(aw),awakeNote(aw)]);
   if(s.tags) rows.push(['Habits logged', Object.keys(s.tags).length+' of 5', TAGS.filter(t=>s.tags[t.k]).map(t=>optLabel(t.k,s.tags[t.k])).join(' · ')]);
-  $('r-rows').innerHTML=rows.map(r=>`<div class="row"><b>${r[0]}</b><span class="val">${r[1]}</span><span class="sub">${esc(r[2])}</span></div>`).join('');
-  renderShareCard(p);
+  return rows.map(r=>`<div class="row"><b>${r[0]}</b><span class="val">${r[1]}</span><span class="sub">${esc(r[2])}</span></div>`).join('');
+}
+/* extra check: scored the same way, compared with today's official test */
+function extraScore(s){
+  const L=state.sessions, from=s.t-28*864e5; let best=perf(s);
+  L.forEach(x=>{if(x.t>=from) best=Math.max(best,perf(x));});
+  const pct=Math.round(clamp(perf(s)/best*100,0,100)), off=neurlAt(L.length-1);
+  return {perf:pct,hab:off.hab,score:off.hab===null?pct:Math.round(W_TEST*pct+W_HAB*off.hab)};
+}
+function renderExtra(s){
+  const L=state.sessions, n=L.length, off=neurlAt(n-1), x=extraScore(s), d=x.score-off.score;
+  const k=state.extras.filter(e=>dayKey(e.t)===dayKey(s.t)).length;
+  const first=new Date(L[n-1].t).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+  ring($('ring2'),x.score,'Extra check',false);
+  $('split2').hidden=false; $('split2').innerHTML=splitHTML(x,n);
+  $('r-label').textContent=`Extra check${k>1?' '+k:''} · today’s score stays ${off.score}`;
+  $('r-title').textContent=d>=3?`${d} points higher than at ${first}`:d<=-3?`${-d} points lower than at ${first}`:`About the same as at ${first}`;
+  $('r-copy').textContent=(d<=-3?'Your capacity has dipped since your first test. A break, food or movement often helps. ':d>=3?'You’ve warmed up since your first test. ':'')+'Your first test of the day is your official score, so extra checks don’t change your streak, badges or boards. They help find your best time of day.';
+  ['r-wins','r-badges','r-type','r-feel','r-exp','r-early','r-action','r-sponsor','r-login','r-push'].forEach(id=>{$(id).hidden=true;});
+  resolveDuel(x.score,n<BASELINE);
+  $('r-rows').innerHTML=testRows(s);
+  renderShareCard(off.score);
+  track('score_shown',{score:x.score,extra:true});
   show('result');
   $('r-title').focus({preventScroll:true});
 }
@@ -2931,8 +3075,9 @@ if(params.get('ref')==='badge'&&badgeDef(params.get('b')||'')){
   notice('badgeref',`A friend shared their <b>${esc(b.name)}</b> badge. Take today’s 60-second test to start earning yours.`,'info');
   track('badge_link_open',{badge:b.k});
 }
-if(params.get('crew')&&/^[a-z0-9]{6}$/.test(params.get('crew'))){
-  const code=params.get('crew'); lsSet('neurl:crew_invite',JSON.stringify({code}));track('crew_open',{});
+const teamCode=params.get('team')||params.get('crew');
+if(teamCode&&/^[a-z0-9]{6}$/.test(teamCode)){
+  const code=teamCode; lsSet('neurl:crew_invite',JSON.stringify({code}));track('crew_open',{});
   fetchCrew(code).then(d=>{if(d&&d.name){lsSet('neurl:crew_invite',JSON.stringify({code,name:d.name}));renderCrewInvite();}});
 }
 if(params.get('duel')){
