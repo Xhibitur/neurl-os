@@ -20,6 +20,14 @@ function cleanSlug(s) {
     .slice(0, 40);
 }
 
+// Compares two strings in constant time so response timing doesn't leak the PIN.
+function sameString(a, b) {
+  const len = Math.max(a.length, b.length);
+  let diff = a.length ^ b.length;
+  for (let i = 0; i < len; i++) diff |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);
+  return diff === 0;
+}
+
 function openStore() {
   try {
     return { store: getStore("neurl-partners"), error: null };
@@ -54,7 +62,11 @@ export default async (req) => {
   // ---- everything below requires the PIN ----
   const pin = process.env.ADMIN_PIN;
   if (!pin) return json(500, { error: "ADMIN_PIN not configured" });
-  if (String(body.pin || "") !== String(pin)) return json(401, { error: "bad pin" });
+  if (!sameString(String(body.pin || ""), String(pin))) {
+    // Slow down repeated guesses so the PIN can't be brute-forced quickly.
+    await new Promise((r) => setTimeout(r, 1500));
+    return json(401, { error: "bad pin" });
+  }
 
   if (body.action === "list") {
     const { blobs } = await store.list();

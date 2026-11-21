@@ -17,6 +17,9 @@ function keyFor(subscription) {
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
+// The app sends the user's own local date, so "already tested today" matches their day, not UTC.
+const localDate = (d) => (/^\d{4}-\d{2}-\d{2}$/.test(String(d || "")) ? d : today());
+const cleanStreak = (n) => (Number.isInteger(n) && n >= 0 && n < 3650 ? n : 0);
 
 export default async (req) => {
   if (req.method !== "POST") return json(405, { error: "method not allowed" });
@@ -68,7 +71,8 @@ export default async (req) => {
       mode: body.mode === "daily" ? "daily" : "weekly",
       hour: Number.isInteger(body.hour) ? body.hour : 19,
       timezone: body.timezone || "UTC",
-      lastDaily: body.lastDaily || null,
+      lastDaily: body.lastDaily ? localDate(body.lastDaily) : null,
+      streak: cleanStreak(body.streak),
       lastSent: null,
       createdAt: new Date().toISOString()
     });
@@ -78,7 +82,8 @@ export default async (req) => {
   if (body.action === "logged") {
     const existing = await store.get(key, { type: "json" });
     if (existing) {
-      existing.lastDaily = today();
+      existing.lastDaily = localDate(body.date);
+      existing.streak = cleanStreak(body.streak);
       await store.setJSON(key, existing);
     }
     return json(200, { ok: true });

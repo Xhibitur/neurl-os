@@ -1,6 +1,6 @@
 // netlify/functions/send-reminders.mjs
 // Netlify v2 scheduled function — runs hourly. Sends each subscriber a reminder
-// at their chosen local hour: the weekly reading prompt on Sundays, a daily
+// at their chosen local hour: the weekly habits prompt on Sundays, a daily
 // nudge otherwise. The schedule is declared in the config export below.
 
 import { getStore } from "@netlify/blobs";
@@ -38,16 +38,27 @@ function localParts(timezone) {
 }
 
 const WEEKLY = {
-  title: "Your NEURL Score is ready",
-  body: "Two minutes. See what changed this week.",
+  title: "Your weekly habits are in",
+  body: "See your Habit Score and this week's focus.",
   url: "https://neurl-os.com/?src=push_weekly"
 };
 
 const DAILY = {
-  title: "15-second check-in",
-  body: "Three sliders. Keeps Sunday's reading accurate.",
+  title: "60-second test",
+  body: "See how you're running today. Tap to take your test.",
   url: "https://neurl-os.com/?src=push_daily"
 };
+const STREAK = (n) => ({
+  title: `Keep your ${n}-day streak going`,
+  body: "60 seconds to see today's stats.",
+  url: "https://neurl-os.com/?src=push_streak"
+});
+// The calendar day before a YYYY-MM-DD date.
+function dayBefore(date) {
+  const d = new Date(date + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
 
 export default async () => {
   if (!process.env.PUSH_PRIVATE_KEY || !process.env.PUSH_PUBLIC_KEY) {
@@ -86,8 +97,9 @@ export default async () => {
     if (now.weekday === "Sun") {
       payload = WEEKLY;                                     // Sunday is always the reading
     } else if (rec.mode === "daily") {
-      if (rec.lastDaily === now.date) { skipped++; continue; } // already logged today
-      payload = DAILY;
+      if (rec.lastDaily === now.date) { skipped++; continue; } // already tested today
+      // A streak is still alive if they tested yesterday.
+      payload = rec.streak >= 2 && rec.lastDaily === dayBefore(now.date) ? STREAK(rec.streak) : DAILY;
     } else {
       skipped++;
       continue;
